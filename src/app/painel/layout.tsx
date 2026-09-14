@@ -1,5 +1,7 @@
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 
+import { BillingBlocked, type BillingState } from '@/components/billing-gate'
 import { Badge } from '@/components/ui'
 import { Logo } from '@/components/marketing'
 import { BRAND, SUBSCRIPTION_LABEL, SUBSCRIPTION_TONE, daysUntil } from '@/lib/brand'
@@ -34,6 +36,23 @@ export default async function PanelLayout({ children }: { children: React.ReactN
 
   const isAdmin = ['platform_admin', 'company_admin'].includes(profile.role)
   const trialLeft = subscription?.status === 'trial' ? daysUntil(subscription.trial_ends_at) : null
+
+  // Assinatura fora de dia bloqueia o painel. O administrador da plataforma
+  // passa: ele precisa enxergar a conta justamente quando ela está irregular.
+  const { data: billing } = profile.company_id
+    ? await supabase.rpc('billing_state', { p_company_id: profile.company_id })
+    : { data: null }
+
+  const state = billing as unknown as BillingState | null
+  const pathname = (await headers()).get('x-pathname') ?? ''
+  // A tela de pagamento fica fora do bloqueio: é por ela que se sai dele.
+  const isBillingRoute = pathname.startsWith('/painel/plano')
+
+  if (state?.blocked && profile.role !== 'platform_admin' && !isBillingRoute) {
+    return (
+      <BillingBlocked state={state} canManage={profile.role === 'company_admin'} />
+    )
+  }
 
   const items: NavItem[] = [
     { href: '/painel', label: 'Dashboard' },

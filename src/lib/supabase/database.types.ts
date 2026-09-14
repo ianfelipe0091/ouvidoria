@@ -419,6 +419,68 @@ export type Database = {
           },
         ]
       }
+      invoices: {
+        Row: {
+          amount_cents: number
+          company_id: string
+          created_at: string
+          currency: string
+          due_at: string | null
+          hosted_url: string | null
+          id: string
+          number: string | null
+          paid_at: string | null
+          pdf_url: string | null
+          period_end: string | null
+          period_start: string | null
+          provider: string
+          provider_invoice_id: string
+          status: Database["public"]["Enums"]["invoice_status"]
+        }
+        Insert: {
+          amount_cents: number
+          company_id: string
+          created_at?: string
+          currency?: string
+          due_at?: string | null
+          hosted_url?: string | null
+          id?: string
+          number?: string | null
+          paid_at?: string | null
+          pdf_url?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          provider: string
+          provider_invoice_id: string
+          status: Database["public"]["Enums"]["invoice_status"]
+        }
+        Update: {
+          amount_cents?: number
+          company_id?: string
+          created_at?: string
+          currency?: string
+          due_at?: string | null
+          hosted_url?: string | null
+          id?: string
+          number?: string | null
+          paid_at?: string | null
+          pdf_url?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          provider?: string
+          provider_invoice_id?: string
+          status?: Database["public"]["Enums"]["invoice_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       occurrence_events: {
         Row: {
           actor_id: string | null
@@ -843,6 +905,7 @@ export type Database = {
           max_users: number | null
           monthly_price: number
           name: string
+          provider_price_id: string | null
           slug: string
           sort_order: number
           trial_days: number
@@ -859,6 +922,7 @@ export type Database = {
           max_users?: number | null
           monthly_price?: number
           name: string
+          provider_price_id?: string | null
           slug: string
           sort_order?: number
           trial_days?: number
@@ -875,6 +939,7 @@ export type Database = {
           max_users?: number | null
           monthly_price?: number
           name?: string
+          provider_price_id?: string | null
           slug?: string
           sort_order?: number
           trial_days?: number
@@ -1018,40 +1083,55 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          cancel_at_period_end: boolean
           canceled_at: string | null
           company_id: string
           contracted_price: number
           created_at: string
           current_period_end: string | null
           current_period_start: string
+          grace_until: string | null
           id: string
           plan_id: string
+          provider: string | null
+          provider_customer_id: string | null
+          provider_subscription_id: string | null
           status: Database["public"]["Enums"]["subscription_status"]
           trial_ends_at: string | null
           updated_at: string
         }
         Insert: {
+          cancel_at_period_end?: boolean
           canceled_at?: string | null
           company_id: string
           contracted_price?: number
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string
+          grace_until?: string | null
           id?: string
           plan_id: string
+          provider?: string | null
+          provider_customer_id?: string | null
+          provider_subscription_id?: string | null
           status?: Database["public"]["Enums"]["subscription_status"]
           trial_ends_at?: string | null
           updated_at?: string
         }
         Update: {
+          cancel_at_period_end?: boolean
           canceled_at?: string | null
           company_id?: string
           contracted_price?: number
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string
+          grace_until?: string | null
           id?: string
           plan_id?: string
+          provider?: string | null
+          provider_customer_id?: string | null
+          provider_subscription_id?: string | null
           status?: Database["public"]["Enums"]["subscription_status"]
           trial_ends_at?: string | null
           updated_at?: string
@@ -1106,11 +1186,57 @@ export type Database = {
           },
         ]
       }
+      webhook_events: {
+        Row: {
+          error: string | null
+          event_id: string
+          event_type: string
+          id: string
+          payload: Json
+          processed_at: string | null
+          provider: string
+          received_at: string
+        }
+        Insert: {
+          error?: string | null
+          event_id: string
+          event_type: string
+          id?: string
+          payload: Json
+          processed_at?: string | null
+          provider: string
+          received_at?: string
+        }
+        Update: {
+          error?: string | null
+          event_id?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          processed_at?: string | null
+          provider?: string
+          received_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      apply_subscription_state: {
+        Args: {
+          p_cancel_at_period_end?: boolean
+          p_grace_days?: number
+          p_period_end?: string
+          p_period_start?: string
+          p_plan_price_id?: string
+          p_provider_subscription_id: string
+          p_status: Database["public"]["Enums"]["subscription_status"]
+        }
+        Returns: Json
+      }
+      billing_state: { Args: { p_company_id: string }; Returns: Json }
       change_company_plan: {
         Args: { p_company_id: string; p_plan_slug: string }
         Returns: Json
@@ -1157,6 +1283,7 @@ export type Database = {
           total: number
         }[]
       }
+      expire_overdue_subscriptions: { Args: never; Returns: number }
       get_ouvidoria_channel: { Args: { p_company_slug: string }; Returns: Json }
       occurrence_sla_state: {
         Args: {
@@ -1231,6 +1358,7 @@ export type Database = {
         | "manager"
         | "area_responsible"
       company_status: "ativa" | "suspensa" | "bloqueada" | "cancelada"
+      invoice_status: "aberta" | "paga" | "falhou" | "estornada" | "cancelada"
       message_author: "manifestante" | "operador"
       occurrence_resolution:
         | "procedente"
@@ -1386,6 +1514,7 @@ export const Constants = {
         "area_responsible",
       ],
       company_status: ["ativa", "suspensa", "bloqueada", "cancelada"],
+      invoice_status: ["aberta", "paga", "falhou", "estornada", "cancelada"],
       message_author: ["manifestante", "operador"],
       occurrence_resolution: [
         "procedente",

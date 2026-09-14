@@ -102,7 +102,57 @@ Esse **cria dados reais** — rode contra um ambiente de teste, não contra
 produção com dados de clientes. Em redes com proxy de saída, o script repassa
 `HTTPS_PROXY` ao navegador automaticamente.
 
-## 7. Remover os dados de demonstração
+## 7. Ativar a cobrança (opcional)
+
+Sem estas variáveis o produto funciona, mas sem pagamento automático.
+
+1. **Crie os produtos e preços no Stripe**, um preço recorrente mensal em BRL
+   por plano. Anote os `price_...`.
+
+2. **Ligue cada preço ao plano** no banco:
+
+   ```sql
+   update plans set provider_price_id = 'price_...' where slug = 'basic';
+   update plans set provider_price_id = 'price_...' where slug = 'professional';
+   update plans set provider_price_id = 'price_...' where slug = 'enterprise';
+   ```
+
+   Plano sem `provider_price_id` não é vendável online: o botão avisa e não abre
+   o checkout.
+
+3. **Cadastre o webhook** no Stripe apontando para
+   `https://seu-dominio/api/webhooks/stripe`, com os eventos:
+
+   ```
+   checkout.session.completed
+   customer.subscription.created
+   customer.subscription.updated
+   customer.subscription.deleted
+   invoice.finalized
+   invoice.paid
+   invoice.payment_failed
+   ```
+
+   Copie o segredo do endpoint para `STRIPE_WEBHOOK_SECRET`.
+
+4. **Ative o portal de cobrança** em Stripe → Settings → Billing → Customer
+   portal. É por ele que o cliente troca o cartão, baixa faturas e cancela —
+   guardar dados de cartão no próprio sistema mudaria o nível de conformidade
+   exigido de tudo.
+
+5. **Defina `CRON_SECRET`** e confirme que o cron diário está ativo (já
+   declarado em `vercel.json`). É ele que suspende quem passou da tolerância.
+
+Para conferir sem mexer em produção:
+
+```bash
+STRIPE_WEBHOOK_SECRET=whsec_teste npm run smoke:billing
+```
+
+O teste gera assinaturas válidas localmente e percorre todo o ciclo — ativação,
+idempotência, inadimplência, bloqueio, retomada e cancelamento.
+
+## 8. Remover os dados de demonstração
 
 Se você rodou `npm run seed:demo` contra o projeto que vai para produção, apague
 a empresa de demonstração antes de abrir o canal ao público — ela existe com um
@@ -132,7 +182,11 @@ O usuário do Auth correspondente sai por
 - **Confirmação de e-mail.** O cadastro confirma o e-mail automaticamente,
   porque ainda não há provedor configurado. Com e-mail funcionando, troque
   `email_confirm: true` por um fluxo de confirmação real.
-- **Cobrança.** Planos e assinaturas existem, mas sem meio de pagamento: a
-  troca de plano é aplicada na hora e o faturamento é acertado fora do sistema.
+- **Impostos e nota fiscal.** O Stripe emite o recibo da cobrança, não a nota
+  fiscal de serviço brasileira. Integrar com um emissor de NFS-e continua
+  pendente.
+- **Cobrança por PIX e boleto.** O checkout está configurado para cartão. Ambos
+  são suportados pelo Stripe no Brasil e exigem habilitação na conta e ajuste
+  em `payment_method_types`.
 - **Backups.** Confirme a política de backup no plano do Supabase; o plano
   gratuito tem retenção limitada.

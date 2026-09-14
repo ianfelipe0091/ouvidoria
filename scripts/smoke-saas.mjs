@@ -164,17 +164,35 @@ try {
   const plano = await page.textContent('body')
   check('mostra o plano atual', plano.includes('Professional'))
   check('mostra uso dos limites', plano.includes('Filiais ativas'))
-  check('oferece mudança de plano', plano.includes('Mudar para'))
 
-  await page.getByRole('button', { name: 'Mudar para Basic' }).click()
-  await page.getByText('Plano alterado para Basic').waitFor({ timeout: 20000 })
-  check('upgrade/downgrade aplica na hora', true)
+  // O rótulo do botão depende de a cobrança estar configurada: com provedor
+  // ativo o clique abre o checkout; sem ele, a troca é aplicada na hora.
+  const comCobranca = plano.includes('Assinar Basic')
+  check('oferece mudança de plano', comCobranca || plano.includes('Mudar para Basic'))
 
-  const { data: after } = await admin
-    .from('subscriptions').select('status, plans(name)').eq('company_id', companyId).maybeSingle()
-  check('assinatura deixa a avaliação ao contratar',
-    after?.status === 'ativa' && after?.plans?.name === 'Basic',
-    `${after?.status} / ${after?.plans?.name}`)
+  if (comCobranca) {
+    check('com cobrança ativa, o texto explica que o plano muda após o pagamento',
+      plano.includes('assim que o pagamento for confirmado'))
+
+    await page.getByRole('button', { name: 'Assinar Basic' }).click()
+    await page.waitForTimeout(4000)
+
+    const { data: naoMudou } = await admin
+      .from('subscriptions').select('plans(name)').eq('company_id', companyId).maybeSingle()
+    // O ponto do teste: clicar em assinar não pode, sozinho, trocar o plano.
+    check('clicar em assinar NÃO troca o plano sem pagamento confirmado',
+      naoMudou?.plans?.name === 'Professional', naoMudou?.plans?.name)
+  } else {
+    await page.getByRole('button', { name: 'Mudar para Basic' }).click()
+    await page.getByText('Plano alterado para Basic').waitFor({ timeout: 20000 })
+    check('sem cobrança configurada, a troca aplica na hora', true)
+
+    const { data: after } = await admin
+      .from('subscriptions').select('status, plans(name)').eq('company_id', companyId).maybeSingle()
+    check('assinatura deixa a avaliação ao contratar',
+      after?.status === 'ativa' && after?.plans?.name === 'Basic',
+      `${after?.status} / ${after?.plans?.name}`)
+  }
 
   console.log('\nCanal público da nova empresa')
   await context.clearCookies()
@@ -184,6 +202,47 @@ try {
   check('canal usa o texto configurado no onboarding',
     canal.includes('Canal de escuta da Transportes Aurora.'))
   check('canal indica que é operado pela plataforma', canal.includes('Canal operado por'))
+
+  console.log('\nBloqueio por assinatura vencida')
+
+  // Força a avaliação a vencer sem pagamento e confirma o bloqueio pela
+  // interface — a regra existe no banco, mas quem a aplica ao acesso é o layout.
+  await admin.from('subscriptions')
+    .update({
+      status: 'trial',
+      trial_ends_at: new Date(Date.now() - 86400000).toISOString(),
+      current_period_end: null,
+    })
+    .eq('company_id', companyId)
+
+  await page.goto(`${BASE}/entrar`, { waitUntil: 'networkidle' })
+  await page.getByLabel('E-mail', { exact: false }).fill(EMAIL)
+  await page.getByLabel('Senha', { exact: true }).fill(SENHA)
+  await page.getByRole('button', { name: 'Entrar' }).click()
+  await page.waitForURL('**/painel', { timeout: 20000 })
+
+  const bloqueio = await page.textContent('body')
+  check('painel bloqueado mostra o motivo', bloqueio.includes('Acesso ao painel suspenso'))
+  check('avisa que os dados continuam guardados', bloqueio.includes('Nada é apagado'))
+  check('não mostra o conteúdo do painel', !bloqueio.includes('Total de manifestações'))
+
+  await page.goto(`${BASE}/painel/ocorrencias`, { waitUntil: 'networkidle' })
+  check('outras telas do painel também ficam bloqueadas',
+    (await page.textContent('body')).includes('Acesso ao painel suspenso'))
+
+  // A tela de pagamento tem de continuar alcançável: é por ela que se sai do
+  // bloqueio. Bloqueá-la deixaria a conta sem saída.
+  await page.goto(`${BASE}/painel/plano`, { waitUntil: 'networkidle' })
+  const telaPagamento = await page.textContent('body')
+  check('tela de pagamento continua acessível durante o bloqueio',
+    telaPagamento.includes('Plano e cobrança') && !telaPagamento.includes('Acesso ao painel suspenso'))
+
+  // O canal público segue no ar: manifestações em andamento não podem sumir
+  // porque a empresa atrasou o pagamento.
+  await context.clearCookies()
+  await page.goto(`${BASE}/ouvidoria/${company.slug}`, { waitUntil: 'networkidle' })
+  check('canal público continua recebendo durante o bloqueio',
+    (await page.textContent('body')).includes('Registrar'))
 
   check('sem erros de console', erros.length === 0, erros.slice(0, 3).join(' | '))
 } catch (error) {

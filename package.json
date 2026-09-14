@@ -14,7 +14,8 @@
     "smoke": "node scripts/smoke.mjs",
     "seed:demo": "node scripts/seed-demo.mjs",
     "admin:create": "node scripts/create-platform-admin.mjs",
-    "smoke:saas": "node scripts/smoke-saas.mjs"
+    "smoke:saas": "node scripts/smoke-saas.mjs",
+    "smoke:billing": "node scripts/smoke-billing.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -22,7 +23,8 @@
     "next": "16.3.5",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "stripe": "^22.6.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

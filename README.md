@@ -27,8 +27,10 @@ assistente de configuração.
 vivo, primeira unidade, endereço do canal para divulgar). O painel desvia para
 cá enquanto a empresa não concluir.
 
-**Planos e assinatura** — `/painel/plano`: plano atual, situação da assinatura,
-dias restantes de avaliação, uso contra os limites e troca de plano.
+**Planos e cobrança** — `/painel/plano`: plano atual, situação da assinatura,
+dias restantes de avaliação, uso contra os limites, faturas e contratação com
+pagamento real. Assinatura fora de dia bloqueia o painel (nunca o canal público)
+e nada é apagado.
 
 **Canal público** — `/ouvidoria/<empresa>`, com identidade visual da empresa:
 formulário em etapas, registro anônimo ou identificado, protocolo e código de
@@ -108,7 +110,7 @@ O schema vive em `supabase/migrations/` e está aplicado no projeto remoto.
 
 | Domínio | Tabelas |
 | --- | --- |
-| Comercial | `plans`, `subscriptions` |
+| Comercial | `plans`, `subscriptions`, `invoices`, `webhook_events` |
 | Tenancy | `companies`, `company_settings`, `branches`, `departments` |
 | Identidade | `profiles`, `user_branches` |
 | Classificação | `occurrence_types`, `categories`, `subjects` |
@@ -143,6 +145,35 @@ mesmo jeito, e um limite que só existe no formulário não é um limite.
 
 Não há cobrança automática. A troca de plano vale na hora; quando entrar um meio
 de pagamento, ela passa a ser consequência do pagamento confirmado.
+
+### Cobrança
+
+O provedor de pagamento é quem decide o estado de uma assinatura paga — a
+aplicação apenas registra o que ele confirmou por webhook. Clicar em "Assinar"
+abre o checkout e **não** muda o plano; quem muda é o evento de pagamento
+confirmado. Sem essa separação, abandonar o checkout deixaria a empresa com o
+plano melhor sem ter pago.
+
+O webhook (`POST /api/webhooks/stripe`) garante três coisas:
+
+1. **Assinatura verificada** antes de ler o conteúdo — HMAC sobre o corpo cru,
+   com tolerância de tempo contra reenvio de captura.
+2. **Idempotência** por `event_id`: provedores reenviam eventos quando não
+   recebem confirmação, e sem a trava um reenvio de `invoice.paid` duplicaria a
+   fatura.
+3. **Tolerância a ordem**: os eventos não chegam na ordem em que aconteceram, e
+   o vínculo entre assinatura e empresa é feito por qualquer evento que carregue
+   a empresa.
+
+Falha de pagamento abre um prazo de tolerância. Vencido o prazo, a empresa é
+suspensa — por rotina agendada (`/api/cron/cobranca`), porque vencimento de
+prazo não é evento que alguém notifique.
+
+Trocar Stripe por Pagar.me ou Mercado Pago é implementar `BillingProvider` em
+`src/lib/billing/`; nada fora dessa pasta conhece o provedor.
+
+Sem `STRIPE_SECRET_KEY` configurada o produto continua funcionando: a troca de
+plano é aplicada na hora e o faturamento se acerta fora do sistema.
 
 ### Perfis de acesso
 
@@ -227,7 +258,8 @@ Rode `npm run db:types` sempre que o schema mudar e versione o resultado.
 | `npm run db:types` | Regenera os tipos do banco. |
 | `npm run db:verify` | Verifica o isolamento multiempresa contra o banco real. |
 | `npm run smoke` | Percorre canal público e painel ponta a ponta num Chromium real. |
-| `npm run smoke:saas` | Percorre cadastro, onboarding, planos e isolamento entre empresas. |
+| `npm run smoke:saas` | Percorre cadastro, onboarding, planos, isolamento e bloqueio por assinatura. |
+| `npm run smoke:billing` | Exercita webhook, idempotência e ciclo de vida da assinatura. |
 | `scripts/verify-deploy.sh <url>` | Confere um ambiente publicado, sem escrever nada. |
 | `npm run seed:demo` | Cria uma empresa de demonstração com dados de exemplo. |
 | `npm run admin:create` | Cria o administrador da plataforma (uma vez, por ambiente). |

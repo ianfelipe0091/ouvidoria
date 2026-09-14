@@ -13,7 +13,13 @@ import { supabasePublishableKey, supabaseUrl } from './env'
  * com sessões expiradas e o usuário seria deslogado silenciosamente.
  */
 export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request })
+  // O caminho da requisição segue num cabeçalho porque layouts do App Router
+  // não recebem a rota atual. Quem precisa decidir por rota — como o bloqueio
+  // por inadimplência, que tem de liberar a própria tela de pagamento — lê daqui.
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-pathname', request.nextUrl.pathname)
+
+  let response = NextResponse.next({ request: { headers: requestHeaders } })
 
   const supabase = createServerClient<Database>(supabaseUrl(), supabasePublishableKey(), {
     cookies: {
@@ -26,7 +32,7 @@ export async function updateSession(request: NextRequest) {
         }
         // A resposta é recriada para carregar os cookies já atualizados na
         // requisição; em seguida os mesmos cookies vão para o browser.
-        response = NextResponse.next({ request })
+        response = NextResponse.next({ request: { headers: requestHeaders } })
         for (const { name, value, options } of cookiesToSet) {
           response.cookies.set(name, value, options)
         }
