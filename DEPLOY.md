@@ -80,14 +80,25 @@ O canal público fica imediatamente disponível em `/ouvidoria/empresa-exemplo`.
 ## 6. Conferir
 
 ```bash
-BASE_URL=https://seu-dominio node scripts/smoke.mjs   # fluxo ponta a ponta
-npm run db:verify                                     # isolamento multiempresa
+scripts/verify-deploy.sh https://seu-dominio   # checagem HTTP do ambiente no ar
+npm run db:verify                              # isolamento multiempresa
 ```
 
-O `smoke` precisa de uma empresa com slug `demo` e das credenciais de um
-usuário dela — ajuste `DEMO_SLUG`, `DEMO_EMAIL` e `DEMO_PASSWORD` conforme o
-ambiente. Ele **cria dados reais**, então não rode contra produção com dados de
-clientes.
+O `verify-deploy.sh` não escreve nada: confere a conexão com o Supabase, se as
+rotas privadas exigem sessão, se o canal público recusa anexo sem o código e se
+a chave secreta não vazou para o HTML nem para os bundles JavaScript. Pode rodar
+contra produção com segurança.
+
+Para o passeio completo num navegador, incluindo registrar e tratar uma
+manifestação:
+
+```bash
+BASE_URL=https://seu-dominio DEMO_PASSWORD='...' npm run smoke
+```
+
+Esse **cria dados reais** — rode contra um ambiente de teste, não contra
+produção com dados de clientes. Em redes com proxy de saída, o script repassa
+`HTTPS_PROXY` ao navegador automaticamente.
 
 ## 7. Remover os dados de demonstração
 

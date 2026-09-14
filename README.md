@@ -190,5 +190,6 @@ Rode `npm run db:types` sempre que o schema mudar e versione o resultado.
 | `npm run db:types` | Regenera os tipos do banco. |
 | `npm run db:verify` | Verifica o isolamento multiempresa contra o banco real. |
 | `npm run smoke` | Percorre os fluxos ponta a ponta num Chromium real. |
+| `scripts/verify-deploy.sh <url>` | Confere um ambiente publicado, sem escrever nada. |
 | `npm run seed:demo` | Cria uma empresa de demonstração com dados de exemplo. |
 | `npm run admin:create` | Cria o administrador da plataforma (uma vez, por ambiente). |

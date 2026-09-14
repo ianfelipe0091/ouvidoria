@@ -30,7 +30,18 @@ function check(name, ok, detail = '') {
 // O ambiente traz um Chromium pré-instalado que pode não bater com o build
 // esperado pela versão do Playwright. Apontar para ele evita baixar outro.
 const EXECUTABLE = process.env.CHROMIUM_PATH ?? '/opt/pw-browsers/chromium'
-const browser = await chromium.launch({ executablePath: EXECUTABLE })
+
+// Em ambientes com proxy de saída (CI isolada, sandbox), o navegador precisa
+// ser instruído explicitamente: as variáveis HTTP(S)_PROXY não chegam sozinhas
+// ao Chromium. Alvo local dispensa o proxy.
+const PROXY = /^https?:\/\/(127\.0\.0\.1|localhost)/.test(BASE)
+  ? undefined
+  : process.env.HTTPS_PROXY ?? process.env.https_proxy
+
+const browser = await chromium.launch({
+  executablePath: EXECUTABLE,
+  ...(PROXY ? { proxy: { server: PROXY } } : {}),
+})
 const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
 const page = await context.newPage()
 
