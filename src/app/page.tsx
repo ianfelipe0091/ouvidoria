@@ -1,66 +1,35 @@
-import { checkSupabaseConnection } from '@/lib/supabase/health'
+import Link from 'next/link'
 
-// O status reflete uma checagem de rede feita agora, não no build.
-export const dynamic = 'force-dynamic'
+import { LinkButton } from '@/components/ui'
+import { currentProfile } from '@/lib/auth'
 
 export default async function Home() {
-  const health = await checkSupabaseConnection()
+  const profile = await currentProfile()
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-8 px-6 py-16">
-      <header className="flex flex-col gap-2">
+      <header className="flex flex-col gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">Ouvidoria</h1>
-        <p className="text-sm opacity-70">
-          Projeto Next.js conectado ao Supabase. Esta página confirma a conexão.
+        <p className="text-sm leading-relaxed text-muted">
+          Plataforma de ouvidoria e relacionamento multiempresa. Cada cliente tem
+          seu próprio canal público, com identidade visual e configuração
+          próprias, e um painel para triagem, tratamento e indicadores.
         </p>
       </header>
 
-      <section
-        className={`rounded-lg border p-5 ${
-          health.ok
-            ? 'border-emerald-600/30 bg-emerald-500/5'
-            : 'border-red-600/30 bg-red-500/5'
-        }`}
-      >
-        <div className="flex items-center gap-2">
-          <span
-            aria-hidden
-            className={`size-2.5 rounded-full ${health.ok ? 'bg-emerald-500' : 'bg-red-500'}`}
-          />
-          <h2 className="font-medium">
-            {health.ok ? 'Conectado ao Supabase' : 'Falha ao conectar ao Supabase'}
-          </h2>
-        </div>
+      <div className="flex flex-wrap gap-3">
+        {profile ? (
+          <LinkButton href="/painel">Ir para o painel</LinkButton>
+        ) : (
+          <LinkButton href="/entrar">Acessar o painel</LinkButton>
+        )}
+      </div>
 
-        <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-          <dt className="opacity-60">Projeto</dt>
-          <dd className="truncate font-mono text-xs">{health.url ?? '—'}</dd>
-
-          <dt className="opacity-60">Latência</dt>
-          <dd className="font-mono text-xs">
-            {health.latencyMs === null ? '—' : `${health.latencyMs} ms`}
-          </dd>
-
-          <dt className="opacity-60">Sessão</dt>
-          <dd className="text-xs">
-            {health.authenticated ? 'usuário autenticado' : 'nenhum usuário autenticado'}
-          </dd>
-
-          {health.error ? (
-            <>
-              <dt className="opacity-60">Erro</dt>
-              <dd className="font-mono text-xs break-words">{health.error}</dd>
-            </>
-          ) : null}
-        </dl>
-      </section>
-
-      <p className="text-sm opacity-70">
-        A mesma checagem em JSON está em{' '}
-        <a className="underline underline-offset-4" href="/api/health">
-          /api/health
-        </a>
-        .
+      <p className="text-xs leading-relaxed text-muted">
+        O canal público de cada empresa fica em{' '}
+        <code className="rounded bg-surface-muted px-1 py-0.5 font-mono">/ouvidoria/&lt;empresa&gt;</code>.
+        O estado da conexão com o banco está em{' '}
+        <Link href="/api/health" className="underline underline-offset-4">/api/health</Link>.
       </p>
     </main>
   )

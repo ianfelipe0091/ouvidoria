@@ -1069,6 +1069,21 @@ export type Database = {
         }
         Returns: Json
       }
+      dashboard_breakdown: {
+        Args: { p_days?: number; p_dimension: string }
+        Returns: {
+          rotulo: string
+          total: number
+        }[]
+      }
+      dashboard_summary: { Args: { p_days?: number }; Returns: Json }
+      dashboard_timeseries: {
+        Args: { p_days?: number }
+        Returns: {
+          dia: string
+          total: number
+        }[]
+      }
       get_ouvidoria_channel: { Args: { p_company_slug: string }; Returns: Json }
       occurrence_sla_state: {
         Args: {
