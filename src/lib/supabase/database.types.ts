@@ -252,8 +252,8 @@ export type Database = {
           id: string
           legal_name: string
           logo_url: string | null
+          onboarded_at: string | null
           phone: string | null
-          plan_id: string | null
           slug: string
           status: Database["public"]["Enums"]["company_status"]
           tax_id: string
@@ -278,8 +278,8 @@ export type Database = {
           id?: string
           legal_name: string
           logo_url?: string | null
+          onboarded_at?: string | null
           phone?: string | null
-          plan_id?: string | null
           slug: string
           status?: Database["public"]["Enums"]["company_status"]
           tax_id: string
@@ -304,8 +304,8 @@ export type Database = {
           id?: string
           legal_name?: string
           logo_url?: string | null
+          onboarded_at?: string | null
           phone?: string | null
-          plan_id?: string | null
           slug?: string
           status?: Database["public"]["Enums"]["company_status"]
           tax_id?: string
@@ -314,15 +314,7 @@ export type Database = {
           website?: string | null
           whatsapp?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "companies_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "plans"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       company_settings: {
         Row: {
@@ -842,35 +834,50 @@ export type Database = {
       plans: {
         Row: {
           created_at: string
+          description: string | null
+          features: Json
           id: string
           is_active: boolean
+          is_public: boolean
           max_branches: number | null
           max_users: number | null
-          monthly_price: number | null
+          monthly_price: number
           name: string
           slug: string
+          sort_order: number
+          trial_days: number
           updated_at: string
         }
         Insert: {
           created_at?: string
+          description?: string | null
+          features?: Json
           id?: string
           is_active?: boolean
+          is_public?: boolean
           max_branches?: number | null
           max_users?: number | null
-          monthly_price?: number | null
+          monthly_price?: number
           name: string
           slug: string
+          sort_order?: number
+          trial_days?: number
           updated_at?: string
         }
         Update: {
           created_at?: string
+          description?: string | null
+          features?: Json
           id?: string
           is_active?: boolean
+          is_public?: boolean
           max_branches?: number | null
           max_users?: number | null
-          monthly_price?: number | null
+          monthly_price?: number
           name?: string
           slug?: string
+          sort_order?: number
+          trial_days?: number
           updated_at?: string
         }
         Relationships: []
@@ -1009,6 +1016,63 @@ export type Database = {
           },
         ]
       }
+      subscriptions: {
+        Row: {
+          canceled_at: string | null
+          company_id: string
+          contracted_price: number
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string
+          id: string
+          plan_id: string
+          status: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          canceled_at?: string | null
+          company_id: string
+          contracted_price?: number
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string
+          id?: string
+          plan_id: string
+          status?: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          canceled_at?: string | null
+          company_id?: string
+          contracted_price?: number
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string
+          id?: string
+          plan_id?: string
+          status?: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_branches: {
         Row: {
           branch_id: string
@@ -1047,6 +1111,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      change_company_plan: {
+        Args: { p_company_id: string; p_plan_slug: string }
+        Returns: Json
+      }
+      company_usage: { Args: { p_company_id: string }; Returns: Json }
+      complete_onboarding: {
+        Args: { p_company_id: string }
+        Returns: undefined
+      }
       create_manifestacao: {
         Args: {
           p_amount_involved?: number
@@ -1099,9 +1172,12 @@ export type Database = {
           p_admin_email?: string
           p_admin_name?: string
           p_admin_user_id?: string
+          p_contact_name?: string
+          p_contact_phone?: string
           p_email: string
           p_headquarters?: string
           p_legal_name: string
+          p_phone?: string
           p_plan_slug?: string
           p_slug: string
           p_tax_id: string
@@ -1128,6 +1204,15 @@ export type Database = {
         }
         Returns: Json
       }
+      set_company_status: {
+        Args: {
+          p_company_id: string
+          p_status: Database["public"]["Enums"]["company_status"]
+          p_subscription_status?: Database["public"]["Enums"]["subscription_status"]
+        }
+        Returns: undefined
+      }
+      suggest_company_slug: { Args: { p_name: string }; Returns: string }
       track_manifestacao: {
         Args: {
           p_company_slug: string
@@ -1136,6 +1221,7 @@ export type Database = {
         }
         Returns: Json
       }
+      unaccent_fallback: { Args: { p_text: string }; Returns: string }
     }
     Enums: {
       app_role:
@@ -1163,6 +1249,7 @@ export type Database = {
         | "descartada"
       record_status: "ativo" | "inativo"
       sla_state: "no_prazo" | "proximo_vencimento" | "em_atraso" | "concluida"
+      subscription_status: "trial" | "ativa" | "inadimplente" | "cancelada"
       task_status: "pendente" | "em_andamento" | "concluida" | "cancelada"
     }
     CompositeTypes: {
@@ -1319,6 +1406,7 @@ export const Constants = {
       ],
       record_status: ["ativo", "inativo"],
       sla_state: ["no_prazo", "proximo_vencimento", "em_atraso", "concluida"],
+      subscription_status: ["trial", "ativa", "inadimplente", "cancelada"],
       task_status: ["pendente", "em_andamento", "concluida", "cancelada"],
     },
   },

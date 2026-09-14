@@ -4,7 +4,8 @@
  * São Server Components por padrão: nenhum deles guarda estado. O que precisa
  * de interatividade recebe "use client" no próprio arquivo que o usa.
  */
-import type { ComponentProps, ReactNode } from 'react'
+import { cloneElement, isValidElement, useId } from 'react'
+import type { ComponentProps, ReactElement, ReactNode } from 'react'
 
 export function cn(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(' ')
@@ -162,6 +163,14 @@ export function Select({ className, children, ...rest }: ComponentProps<'select'
   )
 }
 
+/**
+ * Rótulo, controle e dica.
+ *
+ * A dica fica FORA do <label>, ligada por aria-describedby. Dentro do label ela
+ * entraria no nome acessível do campo — um leitor de tela anunciaria
+ * "Nome fantasia, se vazio usamos a razão social" como se fosse o nome do
+ * campo, e dois campos com dicas parecidas viram indistinguíveis.
+ */
 export function Field({
   label,
   hint,
@@ -175,15 +184,39 @@ export function Field({
   children: ReactNode
   className?: string
 }) {
+  const id = useId()
+  const hintId = hint ? `${id}-hint` : undefined
+
+  // O controle recebe id e aria-describedby sem que cada chamada precise
+  // repetir isso. Filho que não seja elemento único fica sem a ligação, mas
+  // ainda assim dentro do label.
+  const control = isValidElement(children)
+    ? cloneElement(children as ReactElement<Record<string, unknown>>, {
+        id: (children.props as { id?: string }).id ?? id,
+        'aria-describedby':
+          (children.props as { 'aria-describedby'?: string })['aria-describedby'] ?? hintId,
+      })
+    : children
+
   return (
-    <label className={cn('flex flex-col gap-1.5', className)}>
-      <span className="text-xs font-medium">
-        {label}
-        {required ? <span className="ml-0.5 text-danger">*</span> : null}
-      </span>
-      {children}
-      {hint ? <span className="text-xs text-muted">{hint}</span> : null}
-    </label>
+    <div className={cn('flex flex-col gap-1.5', className)}>
+      {/* O asterisco fica FORA do <label>, e não apenas com aria-hidden: assim
+          nem o nome acessível nem o texto do rótulo o incluem. Quem comunica a
+          obrigatoriedade é o atributo `required` do controle; o asterisco é a
+          convenção visual para quem enxerga. */}
+      <div className="flex items-center gap-0.5">
+        <label htmlFor={id} className="text-xs font-medium">
+          {label}
+        </label>
+        {required ? <span aria-hidden className="text-xs text-danger">*</span> : null}
+      </div>
+      {control}
+      {hint ? (
+        <span id={hintId} className="text-xs text-muted">
+          {hint}
+        </span>
+      ) : null}
+    </div>
   )
 }
 

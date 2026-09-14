@@ -3,11 +3,32 @@
 Aplicação [Next.js](https://nextjs.org) (App Router, TypeScript, Tailwind CSS)
 conectada ao projeto **Supabase "Nossa Ouvidoria"**.
 
-Plataforma de ouvidoria e relacionamento **multiempresa**: cada cliente tem seu
-canal público, sua configuração e seu painel, com isolamento garantido por Row
-Level Security.
+Plataforma **SaaS multiempresa** de ouvidoria e relacionamento. Empresas se
+cadastram pelo site, ganham um ambiente exclusivo na hora e operam sua própria
+ouvidoria — com isolamento garantido por Row Level Security.
+
+## Os três públicos
+
+| Quem | Onde | O que faz |
+| --- | --- | --- |
+| **Visitante / futuro cliente** | `/` e `/criar-conta` | Conhece os planos e cria a conta da sua empresa. |
+| **Equipe da empresa cliente** | `/painel` | Trata manifestações, administra filiais, usuários e o próprio plano. |
+| **Manifestante** | `/ouvidoria/<empresa>` | Registra e acompanha sua manifestação. |
+| **Dono da plataforma** | `/master` | Administra todas as empresas, planos e assinaturas. |
 
 ## O que está pronto
+
+**Site comercial** — `/`: proposta de valor, planos vindos do banco e cadastro
+self-service. `/criar-conta` valida o CNPJ pelos dígitos verificadores, cria a
+conta de acesso, provisiona o ambiente completo e já entra autenticado no
+assistente de configuração.
+
+**Onboarding** — `/onboarding`: três passos (identidade do canal com prévia ao
+vivo, primeira unidade, endereço do canal para divulgar). O painel desvia para
+cá enquanto a empresa não concluir.
+
+**Planos e assinatura** — `/painel/plano`: plano atual, situação da assinatura,
+dias restantes de avaliação, uso contra os limites e troca de plano.
 
 **Canal público** — `/ouvidoria/<empresa>`, com identidade visual da empresa:
 formulário em etapas, registro anônimo ou identificado, protocolo e código de
@@ -19,7 +40,9 @@ encaminhamento, mensagens, notas internas, ações internas, anexos, resposta,
 encerramento e histórico), além dos cadastros de filiais, usuários, categorias
 e configurações.
 
-**Painel da plataforma** — `/master`: visão consolidada de todas as empresas.
+**Painel da plataforma** — `/master`: empresas cadastradas, receita recorrente
+contratada, uso de cada conta contra os limites do seu plano, troca de plano e
+suspensão/reativação.
 
 Publicação: veja [DEPLOY.md](./DEPLOY.md).
 
@@ -85,7 +108,8 @@ O schema vive em `supabase/migrations/` e está aplicado no projeto remoto.
 
 | Domínio | Tabelas |
 | --- | --- |
-| Tenancy | `plans`, `companies`, `company_settings`, `branches`, `departments` |
+| Comercial | `plans`, `subscriptions` |
+| Tenancy | `companies`, `company_settings`, `branches`, `departments` |
 | Identidade | `profiles`, `user_branches` |
 | Classificação | `occurrence_types`, `categories`, `subjects` |
 | Manifestações | `occurrences`, `occurrence_events`, `occurrence_messages`, `attachments`, `occurrence_tasks`, `occurrence_ratings` |
@@ -106,6 +130,19 @@ mecanismos independentes, e não apenas pela interface:
 
 Rode `npm run db:verify` para conferir: o script cria duas empresas
 descartáveis, exercita as políticas com JWTs reais e apaga tudo no final.
+
+### Planos e limites
+
+O plano de uma empresa vive **apenas** em `subscriptions` — manter o plano
+também em `companies` garantiria que um dia os dois discordassem, e aí não há
+como saber qual vale para cobrar ou limitar.
+
+Os limites (`max_branches`, `max_users`) são impostos por gatilho no banco, não
+pela interface: a API do PostgREST e qualquer Server Action chegam à tabela do
+mesmo jeito, e um limite que só existe no formulário não é um limite.
+
+Não há cobrança automática. A troca de plano vale na hora; quando entrar um meio
+de pagamento, ela passa a ser consequência do pagamento confirmado.
 
 ### Perfis de acesso
 
@@ -189,7 +226,8 @@ Rode `npm run db:types` sempre que o schema mudar e versione o resultado.
 | `npm run db:link` | Vincula o CLI ao projeto Supabase. |
 | `npm run db:types` | Regenera os tipos do banco. |
 | `npm run db:verify` | Verifica o isolamento multiempresa contra o banco real. |
-| `npm run smoke` | Percorre os fluxos ponta a ponta num Chromium real. |
+| `npm run smoke` | Percorre canal público e painel ponta a ponta num Chromium real. |
+| `npm run smoke:saas` | Percorre cadastro, onboarding, planos e isolamento entre empresas. |
 | `scripts/verify-deploy.sh <url>` | Confere um ambiente publicado, sem escrever nada. |
 | `npm run seed:demo` | Cria uma empresa de demonstração com dados de exemplo. |
 | `npm run admin:create` | Cria o administrador da plataforma (uma vez, por ambiente). |

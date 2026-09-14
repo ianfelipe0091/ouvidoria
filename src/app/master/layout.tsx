@@ -1,5 +1,8 @@
 import Link from 'next/link'
 
+import { Badge } from '@/components/ui'
+import { Logo } from '@/components/marketing'
+import { BRAND } from '@/lib/brand'
 import { requirePlatformAdmin } from '@/lib/auth'
 
 export default async function MasterLayout({ children }: { children: React.ReactNode }) {
@@ -9,9 +12,15 @@ export default async function MasterLayout({ children }: { children: React.React
     <div className="flex min-h-full flex-1 flex-col">
       <header className="border-b border-border bg-surface">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-3">
-          <div>
-            <p className="text-sm font-semibold">Painel da plataforma</p>
-            <p className="text-xs text-muted">{profile.full_name}</p>
+          <div className="flex items-center gap-3">
+            <Logo />
+            <div>
+              <p className="flex items-center gap-2 text-sm font-semibold">
+                {BRAND.name}
+                <Badge tone="accent">Plataforma</Badge>
+              </p>
+              <p className="text-xs text-muted">{profile.full_name}</p>
+            </div>
           </div>
           <div className="flex items-center gap-3 text-xs">
             <Link href="/painel" className="text-muted underline underline-offset-4">

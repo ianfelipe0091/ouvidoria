@@ -1,5 +1,6 @@
 import Link from 'next/link'
 
+import { BRAND } from '@/lib/brand'
 import { getChannel } from '@/lib/channel'
 
 export async function generateMetadata(props: LayoutProps<'/ouvidoria/[slug]'>) {
@@ -50,11 +51,16 @@ export default async function ChannelLayout(props: LayoutProps<'/ouvidoria/[slug
       <footer className="border-t border-border px-6 py-5">
         <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-2 text-xs text-muted">
           <span>{channel.company.name}</span>
-          {channel.branding.privacy_policy_text ? (
-            <Link href={`/ouvidoria/${slug}/privacidade`} className="underline underline-offset-4">
-              Política de privacidade
+          <div className="flex items-center gap-4">
+            {channel.branding.privacy_policy_text ? (
+              <Link href={`/ouvidoria/${slug}/privacidade`} className="underline underline-offset-4">
+                Política de privacidade
+              </Link>
+            ) : null}
+            <Link href="/" className="hover:text-foreground">
+              Canal operado por {BRAND.name}
             </Link>
-          ) : null}
+          </div>
         </div>
       </footer>
     </div>

@@ -57,9 +57,15 @@ node scripts/create-platform-admin.mjs
 
 O script recusa criar um segundo administrador se já houver um.
 
-## 5. Cadastrar a primeira empresa cliente
+## 5. Primeira empresa cliente
 
-Pelo SQL Editor do Supabase, ou por qualquer cliente usando a chave secreta:
+No modelo comercial, quem cadastra é o próprio cliente: basta acessar
+`/criar-conta`. O cadastro cria a conta de acesso, provisiona a empresa com
+assinatura em avaliação, matriz e taxonomia padrão, e leva ao assistente de
+configuração.
+
+Para criar uma conta manualmente (migração, cliente fechado pelo comercial),
+use o SQL Editor do Supabase:
 
 ```sql
 select provision_company(
@@ -68,14 +74,10 @@ select provision_company(
   p_tax_id        => '00000000000000',
   p_email         => 'contato@exemplo.com.br',
   p_trade_name    => 'Empresa Exemplo',
+  p_plan_slug     => 'professional',
   p_admin_user_id => null   -- ou o id de um usuário já criado no Auth
 );
 ```
-
-A função cria a empresa, as configurações, a matriz e a taxonomia padrão
-(8 tipos, 3 categorias com seus assuntos) numa única transação.
-
-O canal público fica imediatamente disponível em `/ouvidoria/empresa-exemplo`.
 
 ## 6. Conferir
 
@@ -122,8 +124,15 @@ O usuário do Auth correspondente sai por
   `occurrence_events`, que é o gancho natural para a integração.
 - **Relatórios exportáveis.** A lista de ocorrências cobre a consulta filtrada;
   exportação para Excel, CSV e PDF é da Fase 2.
-- **Limite de tentativas no canal público.** As funções de consulta por
-  protocolo não têm rate limiting. Antes de expor o canal a um volume real,
-  convém colocar um limitador na borda (WAF da hospedagem ou middleware).
+- **Limite de tentativas.** Nem a consulta por protocolo nem o cadastro de
+  empresas têm rate limiting. O cadastro é o mais sensível: é o único ponto em
+  que uma requisição anônima aciona a chave secreta, e sem limitador alguém
+  pode criar contas em massa. Coloque um limitador na borda antes de divulgar
+  o site.
+- **Confirmação de e-mail.** O cadastro confirma o e-mail automaticamente,
+  porque ainda não há provedor configurado. Com e-mail funcionando, troque
+  `email_confirm: true` por um fluxo de confirmação real.
+- **Cobrança.** Planos e assinaturas existem, mas sem meio de pagamento: a
+  troca de plano é aplicada na hora e o faturamento é acertado fora do sistema.
 - **Backups.** Confirme a política de backup no plano do Supabase; o plano
   gratuito tem retenção limitada.
