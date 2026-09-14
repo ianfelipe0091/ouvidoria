@@ -10,7 +10,8 @@ import {
   formatDate, formatDateTime, type OccurrenceStatus, type TaskStatus,
 } from '@/lib/domain'
 import {
-  answerOccurrence, assignOccurrence, completeTask, createTask, postMessage, updateStatus,
+  answerOccurrence, assignOccurrence, attachmentUrl, completeTask, createTask,
+  postMessage, updateStatus, uploadAttachments,
 } from './actions'
 
 type Option = { id: string; name: string }
@@ -386,4 +387,96 @@ export function TaskPanel({
       </div>
     </Card>
   )
+}
+
+export function AttachmentPanel({
+  occurrenceId, attachments, maxMb, extensions,
+}: {
+  occurrenceId: string
+  attachments: Array<{
+    id: string
+    file_name: string
+    size_bytes: number
+    storage_path: string
+    uploaded_by_reporter: boolean
+    created_at: string
+  }>
+  maxMb: number
+  extensions: string
+}) {
+  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+
+  return (
+    <Card>
+      <CardHeader
+        title="Anexos"
+        description={`Até ${maxMb} MB por arquivo. PDF, imagem, Word ou Excel.`}
+      />
+      <div className="flex flex-col gap-3 px-5 py-4">
+        {attachments.length === 0 ? (
+          <p className="text-xs text-muted">Nenhum anexo.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {attachments.map((file) => (
+              <li key={file.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface-muted px-3 py-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm">{file.file_name}</p>
+                  <p className="text-[11px] text-muted">
+                    {formatBytes(file.size_bytes)}
+                    {file.uploaded_by_reporter ? ' · enviado pelo manifestante' : ''}
+                    {' · '}{formatDateTime(file.created_at)}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={pending}
+                  onClick={() =>
+                    startTransition(async () => {
+                      const result = await attachmentUrl(file.storage_path)
+                      if (result.url) window.open(result.url, '_blank', 'noopener')
+                      else setError(result.error ?? 'Não foi possível abrir o arquivo.')
+                    })
+                  }
+                >
+                  Baixar
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <FormError message={error} />
+
+        <form
+          className="flex flex-wrap items-center gap-2 border-t border-border pt-3"
+          action={(formData) =>
+            startTransition(async () => {
+              const result = await uploadAttachments(occurrenceId, formData)
+              setError(result.error ?? null)
+            })
+          }
+        >
+          <input
+            type="file"
+            name="files"
+            multiple
+            accept={extensions}
+            aria-label="Arquivos para anexar"
+            className="text-xs file:mr-2 file:rounded-lg file:border file:border-border file:bg-surface file:px-3 file:py-1.5 file:text-xs"
+          />
+          <Button type="submit" size="sm" variant="secondary" disabled={pending}>
+            {pending ? 'Enviando…' : 'Anexar'}
+          </Button>
+        </form>
+      </div>
+    </Card>
+  )
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }

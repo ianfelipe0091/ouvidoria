@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 
 import { requireProfile } from '@/lib/auth'
 import { CLOSED_STATUSES, STATUS_LABEL, type OccurrenceStatus } from '@/lib/domain'
+import { BUCKET, storagePath, validateUpload } from '@/lib/attachments'
 import type { Database } from '@/lib/supabase/database.types'
 
 type Resolution = Database['public']['Enums']['occurrence_resolution']
@@ -215,4 +216,78 @@ export async function completeTask(taskId: string, occurrenceId: string): Promis
   if (error) return { error: error.message }
   revalidatePath(`/painel/ocorrencias/${occurrenceId}`)
   return {}
+}
+
+/**
+ * Envia anexos pelo painel.
+ *
+ * Usa o cliente do usuário logado, não o administrativo: as políticas do
+ * Storage exigem que o caminho comece pelo company_id de quem envia, então o
+ * próprio RLS impede gravar na pasta de outra empresa.
+ */
+export async function uploadAttachments(
+  occurrenceId: string,
+  form: FormData,
+): Promise<ActionResult> {
+  const { profile, supabase, occurrence } = await session(occurrenceId)
+  if (!occurrence) return { error: 'Ocorrência não encontrada.' }
+
+  const files = form.getAll('files').filter((f): f is File => f instanceof File)
+  if (!files.length) return { error: 'Selecione ao menos um arquivo.' }
+
+  const { data: settings } = await supabase
+    .from('company_settings')
+    .select('max_attachment_mb')
+    .eq('company_id', occurrence.company_id)
+    .maybeSingle()
+  const maxMb = settings?.max_attachment_mb ?? 10
+
+  for (const file of files) {
+    const check = validateUpload(file, maxMb)
+    if (!check.ok) return { error: check.error }
+
+    const path = storagePath(occurrence.company_id, occurrenceId, file.name)
+    const { error: uploadError } = await supabase.storage
+      .from(BUCKET)
+      .upload(path, file, { contentType: file.type, upsert: false })
+    if (uploadError) return { error: uploadError.message }
+
+    const { error: rowError } = await supabase.from('attachments').insert({
+      company_id: occurrence.company_id,
+      occurrence_id: occurrenceId,
+      storage_path: path,
+      file_name: file.name,
+      mime_type: file.type,
+      size_bytes: file.size,
+      uploaded_by: profile.id,
+    })
+
+    if (rowError) {
+      await supabase.storage.from(BUCKET).remove([path])
+      return { error: rowError.message }
+    }
+  }
+
+  await logEvent(
+    supabase, occurrence.company_id, occurrenceId, profile.id, profile.full_name,
+    'anexo_enviado', `${files.length} ${files.length === 1 ? 'arquivo anexado' : 'arquivos anexados'}.`,
+  )
+  revalidatePath(`/painel/ocorrencias/${occurrenceId}`)
+  return {}
+}
+
+/**
+ * URL temporária para baixar um anexo.
+ *
+ * O bucket é privado, então não existe link permanente: cada download gera uma
+ * URL assinada de curta duração. O RLS decide se o usuário pode ver o arquivo.
+ */
+export async function attachmentUrl(storagePathValue: string): Promise<{ url?: string; error?: string }> {
+  const { supabase } = await requireProfile()
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(storagePathValue, 60)
+
+  if (error) return { error: error.message }
+  return { url: data.signedUrl }
 }

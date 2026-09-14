@@ -19,7 +19,9 @@ export default async function MasterPage() {
     await Promise.all([
       supabase.from('companies').select('id, slug, legal_name, trade_name, tax_id, status, created_at'),
       supabase.from('branches').select('company_id'),
-      supabase.from('profiles').select('company_id'),
+      // Somente perfis de clientes: o administrador da plataforma não pertence
+      // a empresa alguma e não deve entrar nessa contagem.
+      supabase.from('profiles').select('company_id').not('company_id', 'is', null),
       supabase.from('occurrences').select('company_id'),
       supabase
         .from('occurrences')

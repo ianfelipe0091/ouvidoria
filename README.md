@@ -3,19 +3,40 @@
 Aplicação [Next.js](https://nextjs.org) (App Router, TypeScript, Tailwind CSS)
 conectada ao projeto **Supabase "Nossa Ouvidoria"**.
 
-O banco traz o modelo de dados completo da Fase 1 (MVP), com isolamento
-multiempresa garantido por Row Level Security.
+Plataforma de ouvidoria e relacionamento **multiempresa**: cada cliente tem seu
+canal público, sua configuração e seu painel, com isolamento garantido por Row
+Level Security.
+
+## O que está pronto
+
+**Canal público** — `/ouvidoria/<empresa>`, com identidade visual da empresa:
+formulário em etapas, registro anônimo ou identificado, protocolo e código de
+acompanhamento, consulta, conversa com a ouvidoria, anexos e avaliação.
+
+**Painel da equipe** — `/painel`: dashboard com contadores e gráficos, lista de
+ocorrências com os filtros da especificação, tela de tratamento (triagem,
+encaminhamento, mensagens, notas internas, ações internas, anexos, resposta,
+encerramento e histórico), além dos cadastros de filiais, usuários, categorias
+e configurações.
+
+**Painel da plataforma** — `/master`: visão consolidada de todas as empresas.
+
+Publicação: veja [DEPLOY.md](./DEPLOY.md).
 
 ## Começando
 
 ```bash
 npm install
 cp .env.example .env.local   # preencha os valores (veja abaixo)
+npm run seed:demo            # cria a empresa "demo" com dados de exemplo
 npm run dev
 ```
 
-Abra <http://localhost:3000>: a página inicial mostra o status da conexão com o
-Supabase. A mesma checagem em JSON fica em <http://localhost:3000/api/health>.
+- Canal público: <http://localhost:3000/ouvidoria/demo>
+- Painel: <http://localhost:3000/entrar>
+- Estado da conexão: <http://localhost:3000/api/health>
+
+O `seed:demo` imprime o e-mail, a senha e os protocolos gerados.
 
 ## Variáveis de ambiente
 
@@ -122,6 +143,17 @@ número existe em vários tenants. Por isso toda consulta pública é escopada p
 slug: sem isso, um par protocolo + código resolveria para a ocorrência de outra
 empresa.
 
+### Anexos
+
+Ficam num bucket privado do Supabase Storage, em `<company_id>/<occurrence_id>/`.
+As políticas comparam o primeiro segmento do caminho com a empresa de quem pede,
+então um arquivo não é alcançável de fora do tenant nem com o caminho em mãos.
+Não existe link permanente: cada download gera uma URL assinada de 60 segundos.
+
+O manifestante nunca fala com o Storage. O envio pelo canal público passa por
+`POST /api/ouvidoria/<slug>/anexos`, que confere protocolo e código antes de
+gravar.
+
 ### Auditoria
 
 `audit_logs` registra insert, update e delete em `occurrences`,
@@ -157,3 +189,6 @@ Rode `npm run db:types` sempre que o schema mudar e versione o resultado.
 | `npm run db:link` | Vincula o CLI ao projeto Supabase. |
 | `npm run db:types` | Regenera os tipos do banco. |
 | `npm run db:verify` | Verifica o isolamento multiempresa contra o banco real. |
+| `npm run smoke` | Percorre os fluxos ponta a ponta num Chromium real. |
+| `npm run seed:demo` | Cria uma empresa de demonstração com dados de exemplo. |
+| `npm run admin:create` | Cria o administrador da plataforma (uma vez, por ambiente). |

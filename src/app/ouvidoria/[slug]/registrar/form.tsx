@@ -27,6 +27,8 @@ export function RegistrationForm({ channel }: { channel: Channel }) {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
 
+  const [files, setFiles] = useState<File[]>([])
+  const [uploadNote, setUploadNote] = useState<string | null>(null)
   const [stepIndex, setStepIndex] = useState(0)
   const [result, setResult] = useState<SubmitResult | null>(null)
   const [pending, startTransition] = useTransition()
@@ -63,8 +65,7 @@ export function RegistrationForm({ channel }: { channel: Channel }) {
 
   function submit() {
     startTransition(async () => {
-      setResult(
-        await submitManifestacao({
+      const submitted = await submitManifestacao({
           slug: channel.company.slug,
           description,
           typeId: typeId || null,
@@ -81,13 +82,38 @@ export function RegistrationForm({ channel }: { channel: Channel }) {
           occurredLocation: occurredLocation || null,
           peopleInvolved: peopleInvolved || null,
           hasWitnesses: null,
-        }),
-      )
+      })
+
+      setResult(submitted)
+
+      // Os anexos só podem subir depois que a manifestação existe: o servidor
+      // confere protocolo + código antes de aceitar qualquer arquivo.
+      if (submitted.ok && files.length) {
+        const body = new FormData()
+        body.set('protocol', submitted.protocol)
+        body.set('tracking_code', submitted.trackingCode)
+        for (const file of files) body.append('files', file)
+
+        const response = await fetch(`/api/ouvidoria/${channel.company.slug}/anexos`, {
+          method: 'POST',
+          body,
+        })
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          // A manifestação já foi registrada; o anexo é que falhou. Dizer isso
+          // com clareza evita que a pessoa ache que precisa registrar de novo.
+          setUploadNote(
+            payload?.error ??
+              'A manifestação foi registrada, mas os anexos não puderam ser enviados.',
+          )
+        }
+      }
     })
   }
 
   if (result?.ok) {
-    return <Receipt result={result} slug={channel.company.slug} />
+    return <Receipt result={result} slug={channel.company.slug} uploadNote={uploadNote} />
   }
 
   const typeName = channel.types.find((t) => t.id === typeId)?.name
@@ -243,6 +269,21 @@ export function RegistrationForm({ channel }: { channel: Channel }) {
                 onChange={(e) => setPeopleInvolved(e.target.value)}
               />
             </Field>
+
+            {channel.options.allow_attachments ? (
+              <Field
+                label="Anexos"
+                hint={`Opcional. Até ${channel.options.max_attachment_mb} MB por arquivo — PDF, imagem, Word ou Excel.`}
+              >
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+                  onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+                  className="text-xs file:mr-2 file:rounded-lg file:border file:border-border file:bg-surface file:px-3 file:py-1.5 file:text-xs"
+                />
+              </Field>
+            ) : null}
           </div>
         ) : null}
 
@@ -288,6 +329,9 @@ export function RegistrationForm({ channel }: { channel: Channel }) {
               {categoryName ? <Row label="Categoria" value={categoryName} /> : null}
               {subjectName ? <Row label="Assunto" value={subjectName} /> : null}
               <Row label="Relato" value={description} />
+              {files.length ? (
+                <Row label="Anexos" value={files.map((f) => f.name).join(', ')} />
+              ) : null}
             </dl>
           </div>
         ) : null}
@@ -371,9 +415,11 @@ function Choice({
 function Receipt({
   result,
   slug,
+  uploadNote,
 }: {
   result: Extract<SubmitResult, { ok: true }>
   slug: string
+  uploadNote: string | null
 }) {
   return (
     <div className="flex flex-col gap-5">
@@ -396,6 +442,12 @@ function Receipt({
             <p className="mt-1 font-mono text-sm font-semibold">{result.trackingCode}</p>
           </div>
         </div>
+
+        {uploadNote ? (
+          <p className="rounded-lg bg-warn-soft px-3 py-2 text-xs leading-relaxed text-warn">
+            {uploadNote}
+          </p>
+        ) : null}
 
         <p className="rounded-lg bg-warn-soft px-3 py-2 text-xs leading-relaxed text-warn">
           <strong className="font-semibold">Guarde os dois agora.</strong> O código não é enviado

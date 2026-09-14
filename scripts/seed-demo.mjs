@@ -20,7 +20,13 @@ const anon = createClient(URL_, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 })
 
 const slug = process.env.DEMO_SLUG ?? 'demo'
-const password = process.env.DEMO_PASSWORD ?? 'Demo!2026Ouvidoria'
+const password = process.env.DEMO_PASSWORD
+
+if (!password) {
+  console.error('Defina DEMO_PASSWORD. Não há senha padrão: uma credencial')
+  console.error('conhecida no repositório vira porta aberta assim que o ambiente sobe.')
+  process.exit(1)
+}
 
 async function main() {
   const email = `admin@${slug}.exemplo.br`

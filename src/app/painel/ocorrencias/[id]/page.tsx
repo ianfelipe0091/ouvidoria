@@ -7,8 +7,9 @@ import {
   CLOSED_STATUSES, SLA_LABEL, SLA_TONE, STATUS_LABEL, STATUS_TONE,
   formatDate, formatDateTime, slaState,
 } from '@/lib/domain'
+import { ALLOWED_EXTENSIONS } from '@/lib/attachments'
 import {
-  AnswerPanel, AssignPanel, MessagePanel, StatusControl, TaskPanel,
+  AnswerPanel, AssignPanel, AttachmentPanel, MessagePanel, StatusControl, TaskPanel,
 } from './workflow'
 
 export default async function OccurrencePage(props: PageProps<'/painel/ocorrencias/[id]'>) {
@@ -28,9 +29,14 @@ export default async function OccurrencePage(props: PageProps<'/painel/ocorrenci
   // distingue os dois, e a interface também não deve.
   if (!occurrence) notFound()
 
-  const [settings, messages, events, tasks, departments, assignees, rating] = await Promise.all([
+  const [settings, messages, events, tasks, departments, assignees, rating, attachments] =
+    await Promise.all([
     profile.company_id
-      ? supabase.from('company_settings').select('sla_warning_days').eq('company_id', profile.company_id).maybeSingle()
+      ? supabase
+          .from('company_settings')
+          .select('sla_warning_days, max_attachment_mb')
+          .eq('company_id', profile.company_id)
+          .maybeSingle()
       : Promise.resolve({ data: null }),
     supabase
       .from('occurrence_messages')
@@ -52,6 +58,11 @@ export default async function OccurrencePage(props: PageProps<'/painel/ocorrenci
     supabase.from('departments').select('id, name').eq('status', 'ativo').order('name'),
     supabase.from('profiles').select('id, full_name').eq('status', 'ativo').order('full_name'),
     supabase.from('occurrence_ratings').select('stars, comment').eq('occurrence_id', id).maybeSingle(),
+    supabase
+      .from('attachments')
+      .select('id, file_name, size_bytes, storage_path, uploaded_by_reporter, created_at')
+      .eq('occurrence_id', id)
+      .order('created_at'),
   ])
 
   const warningDays = settings.data?.sla_warning_days ?? 2
@@ -139,6 +150,13 @@ export default async function OccurrencePage(props: PageProps<'/painel/ocorrenci
           assignees={assignees.data ?? []}
         />
       </div>
+
+      <AttachmentPanel
+        occurrenceId={occurrence.id}
+        attachments={attachments.data ?? []}
+        maxMb={settings.data?.max_attachment_mb ?? 10}
+        extensions={ALLOWED_EXTENSIONS}
+      />
 
       <MessagePanel
         occurrenceId={occurrence.id}

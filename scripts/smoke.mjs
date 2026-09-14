@@ -12,7 +12,12 @@ import { chromium } from 'playwright'
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:3000'
 const SLUG = process.env.DEMO_SLUG ?? 'demo'
 const EMAIL = process.env.DEMO_EMAIL ?? `admin@${SLUG}.exemplo.br`
-const PASSWORD = process.env.DEMO_PASSWORD ?? 'Demo!2026Ouvidoria'
+const PASSWORD = process.env.DEMO_PASSWORD
+
+if (!PASSWORD) {
+  console.error('Defina DEMO_PASSWORD com a senha do usuário de demonstração.')
+  process.exit(1)
+}
 
 let passed = 0
 let failed = 0
@@ -32,6 +37,14 @@ const page = await context.newPage()
 const erros = []
 page.on('console', (m) => { if (m.type() === 'error') erros.push(m.text()) })
 page.on('pageerror', (e) => erros.push(String(e)))
+
+// Registra as URLs de download de anexo tentadas. A navegação em si depende de
+// o navegador alcançar o domínio do Storage, o que nem todo ambiente permite —
+// o que o teste precisa confirmar é que a URL assinada foi emitida.
+const urlsAssinadas = []
+context.on('request', (req) => {
+  if (req.url().includes('/storage/v1/object/sign/')) urlsAssinadas.push(req.url())
+})
 
 try {
   console.log('\nCanal público')
@@ -55,13 +68,24 @@ try {
   // Etapa 4 — assunto
   await page.getByRole('button', { name: 'Continuar' }).click()
 
-  // Etapa 5 — relato
+  // Etapa 5 — relato, com anexo
   const RELATO = 'Relato criado pelo teste de fumaça automatizado para validar o fluxo completo.'
   await page.getByRole('textbox').first().fill(RELATO)
+
+  // PNG mínimo válido, gerado em memória: evita depender de arquivo no disco.
+  const PNG = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  )
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'comprovante-teste.png', mimeType: 'image/png', buffer: PNG,
+  })
   await page.getByRole('button', { name: 'Continuar' }).click()
 
   // Revisão
-  check('revisão mostra o relato', (await page.textContent('body')).includes(RELATO))
+  const revisao = await page.textContent('body')
+  check('revisão mostra o relato', revisao.includes(RELATO))
+  check('revisão lista o anexo escolhido', revisao.includes('comprovante-teste.png'))
   await page.getByRole('button', { name: /Enviar manifestação/i }).click()
 
   await page.getByText('Manifestação registrada').waitFor({ timeout: 15000 })
@@ -121,6 +145,19 @@ try {
   check('detalhe mostra a mensagem do manifestante',
     detalhe.includes('Mensagem de teste do manifestante.'))
   check('detalhe mostra o histórico', detalhe.includes('Histórico'))
+  check('anexo do manifestante aparece no painel',
+    detalhe.includes('comprovante-teste.png') && detalhe.includes('enviado pelo manifestante'))
+
+  // O bucket é privado: o download só pode sair por URL assinada.
+  const [popup] = await Promise.all([
+    page.waitForEvent('popup', { timeout: 15000 }).catch(() => null),
+    page.getByRole('button', { name: 'Baixar' }).first().click(),
+  ])
+  await page.waitForTimeout(1500)
+  check('download do anexo usa URL assinada e temporária',
+    urlsAssinadas.some((u) => u.includes('token=')),
+    urlsAssinadas[0]?.slice(0, 70) ?? 'nenhuma requisição ao Storage')
+  if (popup) await popup.close()
 
   // Resposta e encerramento
   await page.getByLabel('Resposta ao manifestante').fill(
