@@ -15,7 +15,8 @@
     "seed:demo": "node scripts/seed-demo.mjs",
     "admin:create": "node scripts/create-platform-admin.mjs",
     "smoke:saas": "node scripts/smoke-saas.mjs",
-    "smoke:billing": "node scripts/smoke-billing.mjs"
+    "smoke:billing": "node scripts/smoke-billing.mjs",
+    "smoke:dashboard": "node scripts/smoke-dashboard.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

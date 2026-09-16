@@ -13,6 +13,64 @@
 import type { ReactNode } from 'react'
 
 import { Card, CardHeader, cn } from '@/components/ui'
+import {
+  SEVERITY_LABEL, SEVERITY_SHAPE, severityColor, type Severity,
+} from '@/lib/domain'
+
+/**
+ * Marcador de gravidade: cor + forma.
+ *
+ * A forma não é enfeite. Vermelho (denúncia) e verde (elogio) colapsam sob
+ * deuteranopia, então quem não separa as duas cores distingue pela forma — e
+ * pelo rótulo, que acompanha todo marcador.
+ */
+export function SeverityMark({
+  severity, size = 10, className,
+}: {
+  severity: Severity
+  size?: number
+  className?: string
+}) {
+  const shape = SEVERITY_SHAPE[severity]
+  const color = severityColor(severity)
+  const half = size / 2
+
+  const path =
+    shape === 'triangulo'
+      ? `M ${half} 1 L ${size - 1} ${size - 1.5} L 1 ${size - 1.5} Z`
+      : shape === 'losango'
+        ? `M ${half} 0.5 L ${size - 0.5} ${half} L ${half} ${size - 0.5} L 0.5 ${half} Z`
+        : shape === 'estrela'
+          ? estrela(half, half, half - 0.5, (half - 0.5) * 0.45)
+          : ''
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      className={cn('shrink-0', className)}
+      role="img"
+      aria-label={SEVERITY_LABEL[severity]}
+    >
+      {shape === 'circulo' ? (
+        <circle cx={half} cy={half} r={half - 0.5} fill={color} />
+      ) : (
+        <path d={path} fill={color} />
+      )}
+    </svg>
+  )
+}
+
+function estrela(cx: number, cy: number, raioExterno: number, raioInterno: number) {
+  const pontos: string[] = []
+  for (let i = 0; i < 10; i++) {
+    const raio = i % 2 === 0 ? raioExterno : raioInterno
+    const angulo = (Math.PI / 5) * i - Math.PI / 2
+    pontos.push(`${(cx + raio * Math.cos(angulo)).toFixed(2)} ${(cy + raio * Math.sin(angulo)).toFixed(2)}`)
+  }
+  return `M ${pontos.join(' L ')} Z`
+}
 
 export function StatTile({
   label, value, hint, tone,
@@ -46,18 +104,19 @@ export function StatTile({
  * vertical, virariam texto girado ou truncado.
  */
 export function BarList({
-  title, description, data, empty = 'Sem dados no período.',
+  title, description, data, empty = 'Sem dados no período.', className,
 }: {
   title: string
   description?: string
-  data: Array<{ rotulo: string; total: number }>
+  data: Array<{ rotulo: string; total: number; severidade?: Severity | null }>
   empty?: string
+  className?: string
 }) {
   const max = Math.max(1, ...data.map((d) => d.total))
   const totalGeral = data.reduce((sum, d) => sum + d.total, 0)
 
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader title={title} description={description} />
       <div className="px-5 py-4">
         {data.length === 0 ? (
@@ -69,7 +128,12 @@ export function BarList({
               return (
                 <li key={item.rotulo} className="flex flex-col gap-1">
                   <div className="flex items-baseline justify-between gap-3 text-xs">
-                    <span className="min-w-0 truncate">{item.rotulo}</span>
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      {item.severidade ? (
+                        <SeverityMark severity={item.severidade} className="translate-y-px" />
+                      ) : null}
+                      <span className="truncate">{item.rotulo}</span>
+                    </span>
                     <span className="shrink-0 tabular-nums text-muted">
                       <span className="font-medium text-foreground">{item.total}</span>
                       {totalGeral ? ` · ${share}%` : ''}
@@ -79,10 +143,15 @@ export function BarList({
                       arredondada só no lado dos dados. */}
                   <div className="h-1.5 w-full rounded-full bg-chart-grid">
                     <div
-                      className="h-1.5 rounded-r-full bg-chart"
-                      style={{ width: `${Math.max(2, (item.total / max) * 100)}%` }}
+                      className="h-1.5 rounded-r-full"
+                      style={{
+                        width: `${Math.max(2, (item.total / max) * 100)}%`,
+                        background: item.severidade ? severityColor(item.severidade) : 'var(--chart)',
+                      }}
                       role="img"
-                      aria-label={`${item.rotulo}: ${item.total}`}
+                      aria-label={`${item.rotulo}: ${item.total}${
+                        item.severidade ? ` (${SEVERITY_LABEL[item.severidade]})` : ''
+                      }`}
                     />
                   </div>
                 </li>
@@ -205,5 +274,124 @@ export function TrendChart({
 function shortDate(value: string) {
   return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit' }).format(
     new Date(`${value}T12:00:00`),
+  )
+}
+
+/**
+ * "Relógio" do total: anel segmentado por gravidade, com o número ao centro.
+ *
+ * O anel dá a leitura rápida da composição; o número dá o total exato. As
+ * fatias são separadas por uma folga da cor da superfície, para que duas
+ * gravidades vizinhas não se fundam numa mancha só.
+ *
+ * A legenda traz forma, rótulo e valor: a identidade de cada fatia nunca
+ * depende só da cor.
+ */
+export function SeverityDial({
+  title, description, total, data, emptyLabel = 'Sem manifestações no período.',
+}: {
+  title: string
+  description?: string
+  total: number
+  data: Array<{ severidade: Severity; rotulo: string; total: number }>
+  emptyLabel?: string
+}) {
+  const size = 168
+  const stroke = 18
+  const raio = (size - stroke) / 2
+  const circunferencia = 2 * Math.PI * raio
+  // Folga entre fatias, em unidades de arco. Some só quando há mais de uma.
+  const folga = data.length > 1 ? 3 : 0
+
+  // O início de cada fatia é a soma das anteriores. Calculado a partir dos
+  // dados, sem acumulador mutável: são poucas fatias e o custo é irrelevante
+  // perto de ter uma variável sendo reescrita durante a renderização.
+  const fatias = data.map((item, indice) => {
+    const proporcao = total > 0 ? item.total / total : 0
+    const anteriores = data.slice(0, indice).reduce((soma, d) => soma + d.total, 0)
+    return {
+      ...item,
+      proporcao,
+      comprimento: Math.max(0, proporcao * circunferencia - folga),
+      inicio: total > 0 ? (anteriores / total) * circunferencia : 0,
+    }
+  })
+
+  const resumo = data.map((d) => `${d.rotulo}: ${d.total}`).join(', ')
+
+  return (
+    <Card>
+      <CardHeader title={title} description={description} />
+      <div className="flex flex-col items-center gap-5 px-5 py-5 sm:flex-row sm:items-center sm:gap-7">
+        <div className="relative shrink-0">
+          <svg
+            width={size}
+            height={size}
+            viewBox={`0 0 ${size} ${size}`}
+            role="img"
+            aria-label={
+              total > 0
+                ? `Total de ${total} manifestações. ${resumo}.`
+                : emptyLabel
+            }
+          >
+            {/* Trilha: marca o círculo completo mesmo quando não há dados. */}
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={raio}
+              fill="none"
+              stroke="var(--chart-grid)"
+              strokeWidth={stroke}
+            />
+            {/* Começa no topo, em vez de às 3 horas. */}
+            <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
+              {fatias.map((fatia) => (
+                <circle
+                  key={fatia.severidade}
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={raio}
+                  fill="none"
+                  stroke={severityColor(fatia.severidade)}
+                  strokeWidth={stroke}
+                  strokeDasharray={`${fatia.comprimento} ${circunferencia - fatia.comprimento}`}
+                  strokeDashoffset={-fatia.inicio}
+                  strokeLinecap="butt"
+                >
+                  <title>{`${fatia.rotulo}: ${fatia.total} (${Math.round(fatia.proporcao * 100)}%)`}</title>
+                </circle>
+              ))}
+            </g>
+          </svg>
+
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-3xl font-semibold tabular-nums tracking-tight">{total}</span>
+            <span className="text-[11px] text-muted">
+              {total === 1 ? 'manifestação' : 'manifestações'}
+            </span>
+          </div>
+        </div>
+
+        <ul className="flex w-full min-w-0 flex-col gap-2">
+          {data.length === 0 ? (
+            <li className="text-xs text-muted">{emptyLabel}</li>
+          ) : (
+            data.map((item) => (
+              <li key={item.severidade} className="flex items-center justify-between gap-3 text-xs">
+                <span className="flex min-w-0 items-center gap-2">
+                  <SeverityMark severity={item.severidade} />
+                  <span className="truncate">{item.rotulo}</span>
+                </span>
+                <span className="shrink-0 tabular-nums text-muted">
+                  <span className="font-medium text-foreground">{item.total}</span>
+                  {total > 0 ? ` · ${Math.round((item.total / total) * 100)}%` : ''}
+                </span>
+              </li>
+            ))
+          )}
+        </ul>
+      </div>
+    </Card>
   )
 }

@@ -12,6 +12,40 @@ export type OccurrenceResolution = Database['public']['Enums']['occurrence_resol
 export type AppRole = Database['public']['Enums']['app_role']
 export type SlaState = Database['public']['Enums']['sla_state']
 export type TaskStatus = Database['public']['Enums']['task_status']
+export type Severity = Database['public']['Enums']['occurrence_severity']
+
+export const SEVERITY_LABEL: Record<Severity, string> = {
+  grave: 'Grave',
+  atencao: 'Requer atenção',
+  neutro: 'Neutro',
+  positivo: 'Positivo',
+}
+
+/** Ordem de leitura: do mais grave ao positivo. */
+export const SEVERITY_ORDER: Severity[] = ['grave', 'atencao', 'neutro', 'positivo']
+
+/**
+ * Forma do marcador de cada gravidade.
+ *
+ * É a codificação redundante que sustenta a cor. Vermelho e verde colapsam sob
+ * deuteranopia (ΔE 6,2 no tema claro), então a forma — e o rótulo por extenso,
+ * sempre presente — é o que carrega a distinção para quem não separa as duas.
+ */
+export const SEVERITY_SHAPE: Record<Severity, 'triangulo' | 'losango' | 'circulo' | 'estrela'> = {
+  grave: 'triangulo',
+  atencao: 'losango',
+  neutro: 'circulo',
+  positivo: 'estrela',
+}
+
+/** Variável CSS da cor de cada gravidade, resolvida por tema. */
+export function severityColor(severity: Severity) {
+  return `var(--sev-${severity})`
+}
+
+export function severitySoft(severity: Severity) {
+  return `var(--sev-${severity}-soft)`
+}
 
 type Tone = 'neutral' | 'info' | 'warn' | 'ok' | 'danger'
 

@@ -1,12 +1,13 @@
 import { Card, CardHeader, PageHeader } from '@/components/ui'
 import { requireCompanyAdmin } from '@/lib/auth'
-import { ActiveBadge, InlineCreate, SubjectCreate, ToggleRecord } from './client'
+import type { Severity } from '@/lib/domain'
+import { ActiveBadge, InlineCreate, SeverityPicker, SubjectCreate, ToggleRecord } from './client'
 
 export default async function TaxonomyPage() {
   const { supabase } = await requireCompanyAdmin()
 
   const [types, categories, subjects] = await Promise.all([
-    supabase.from('occurrence_types').select('id, name, status, is_system').order('sort_order').order('name'),
+    supabase.from('occurrence_types').select('id, name, status, is_system, severity').order('sort_order').order('name'),
     supabase.from('categories').select('id, name, status').order('sort_order').order('name'),
     supabase.from('subjects').select('id, name, status, category_id').order('sort_order').order('name'),
   ])
@@ -22,17 +23,20 @@ export default async function TaxonomyPage() {
         <Card>
           <CardHeader
             title="Tipos de manifestação"
-            description="Aparecem como primeira escolha no formulário público."
+            description="A gravidade define a cor e a forma do tipo nos indicadores."
           />
           <div className="flex flex-col gap-3 px-5 py-4">
             <ul className="flex flex-col gap-2">
               {(types.data ?? []).map((type) => (
-                <li key={type.id} className="flex items-center justify-between gap-2 text-sm">
+                <li key={type.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
                   <span className="flex items-center gap-2">
                     {type.name}
                     <ActiveBadge active={type.status === 'ativo'} />
                   </span>
-                  <ToggleRecord table="occurrence_types" id={type.id} active={type.status === 'ativo'} />
+                  <span className="flex items-center gap-3">
+                    <SeverityPicker id={type.id} severity={type.severity as Severity} />
+                    <ToggleRecord table="occurrence_types" id={type.id} active={type.status === 'ativo'} />
+                  </span>
                 </li>
               ))}
             </ul>

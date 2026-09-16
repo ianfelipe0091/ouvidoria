@@ -1,10 +1,13 @@
 import Link from 'next/link'
 
-import { BarList, StatTile, TrendChart } from '@/components/charts'
+import { BarList, SeverityDial, StatTile, TrendChart } from '@/components/charts'
 import { PageHeader } from '@/components/ui'
 import { requireProfile } from '@/lib/auth'
-import { STATUS_LABEL, type OccurrenceStatus } from '@/lib/domain'
-import { PeriodPicker } from './period'
+import {
+  SEVERITY_LABEL, SEVERITY_ORDER, STATUS_LABEL,
+  type OccurrenceStatus, type Severity,
+} from '@/lib/domain'
+import { DashboardFilters, type DashboardOptions } from './filters'
 
 type Summary = {
   total: number
@@ -19,6 +22,8 @@ type Summary = {
   tempo_medio_resposta: number | null
 }
 
+type Breakdown = { rotulo: string; total: number; severidade: string | null }
+
 const PERIODS: Record<string, { days: number; label: string }> = {
   '7': { days: 7, label: 'últimos 7 dias' },
   '30': { days: 30, label: 'últimos 30 dias' },
@@ -26,82 +31,158 @@ const PERIODS: Record<string, { days: number; label: string }> = {
   '365': { days: 365, label: 'últimos 12 meses' },
 }
 
+const one = (value: string | string[] | undefined) =>
+  typeof value === 'string' && value ? value : null
+
 export default async function DashboardPage(props: PageProps<'/painel'>) {
   const params = await props.searchParams
-  const key = typeof params.periodo === 'string' && PERIODS[params.periodo] ? params.periodo : '30'
+  const key = one(params.periodo) && PERIODS[one(params.periodo)!] ? one(params.periodo)! : '30'
   const { days, label } = PERIODS[key]
+
+  const estado = one(params.estado)
+  const loja = one(params.loja)
+  const tipo = one(params.tipo)
 
   const { supabase } = await requireProfile()
 
-  const [summary, series, porTipo, porFilial, porCategoria, porStatus] = await Promise.all([
-    supabase.rpc('dashboard_summary', { p_days: days }),
-    supabase.rpc('dashboard_timeseries', { p_days: days }),
-    supabase.rpc('dashboard_breakdown', { p_dimension: 'tipo', p_days: days }),
-    supabase.rpc('dashboard_breakdown', { p_dimension: 'filial', p_days: days }),
-    supabase.rpc('dashboard_breakdown', { p_dimension: 'categoria', p_days: days }),
-    supabase.rpc('dashboard_breakdown', { p_dimension: 'status', p_days: days }),
+  // O mesmo recorte vai para todas as consultas. Filtrar só parte da tela
+  // produziria números que não fecham entre si.
+  const filtros = {
+    p_days: days,
+    p_state: estado ?? undefined,
+    p_branch_id: loja ?? undefined,
+    p_type_id: tipo ?? undefined,
+  }
+
+  const [summary, series, porTipo, porFilial, porEstado, porCategoria, porStatus,
+         states, branches, types] = await Promise.all([
+    supabase.rpc('dashboard_summary', filtros),
+    supabase.rpc('dashboard_timeseries', filtros),
+    supabase.rpc('dashboard_breakdown', { p_dimension: 'tipo', ...filtros }),
+    supabase.rpc('dashboard_breakdown', { p_dimension: 'filial', ...filtros }),
+    supabase.rpc('dashboard_breakdown', { p_dimension: 'estado', ...filtros }),
+    supabase.rpc('dashboard_breakdown', { p_dimension: 'categoria', ...filtros }),
+    supabase.rpc('dashboard_breakdown', { p_dimension: 'status', ...filtros }),
+    supabase.rpc('company_states'),
+    supabase.from('branches').select('id, name, address_state').eq('status', 'ativo').order('name'),
+    supabase.from('occurrence_types').select('id, name').eq('status', 'ativo').order('sort_order'),
   ])
 
   const s = (summary.data as unknown as Summary) ?? null
-  const statusData = (porStatus.data ?? []).map((row) => ({
-    rotulo: STATUS_LABEL[row.rotulo as OccurrenceStatus] ?? row.rotulo,
-    total: Number(row.total),
-  }))
+  const tipos = (porTipo.data ?? []) as Breakdown[]
 
-  const toChart = (rows: Array<{ rotulo: string; total: number }> | null) =>
-    (rows ?? []).map((r) => ({ rotulo: r.rotulo, total: Number(r.total) }))
+  const toChart = (rows: Breakdown[] | null) =>
+    (rows ?? []).map((r) => ({
+      rotulo: r.rotulo,
+      total: Number(r.total),
+      severidade: (r.severidade as Severity | null) ?? null,
+    }))
+
+  // O anel agrupa os tipos por gravidade: é a leitura que o gestor faz primeiro
+  // — quanto do volume é grave — antes de olhar tipo a tipo.
+  const porGravidade = SEVERITY_ORDER.map((severidade) => ({
+    severidade,
+    rotulo: SEVERITY_LABEL[severidade],
+    total: tipos
+      .filter((t) => t.severidade === severidade)
+      .reduce((soma, t) => soma + Number(t.total), 0),
+  })).filter((item) => item.total > 0)
+
+  const options: DashboardOptions = {
+    states: (states.data ?? []).map((r) => ({ uf: r.uf, filiais: Number(r.filiais) })),
+    branches: branches.data ?? [],
+    types: types.data ?? [],
+  }
+
+  const recorte = [
+    estado ? `estado ${estado}` : null,
+    loja ? options.branches.find((b) => b.id === loja)?.name : null,
+    tipo ? options.types.find((t) => t.id === tipo)?.name : null,
+  ].filter(Boolean)
 
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
         title="Dashboard"
-        description={`Visão da operação nos ${label}.`}
-        action={<PeriodPicker value={key} />}
+        description={
+          recorte.length
+            ? `${label} · ${recorte.join(' · ')}`
+            : `Visão da operação nos ${label}.`
+        }
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatTile label="Total de manifestações" value={s?.total ?? 0} />
-        <StatTile label="Novas" value={s?.novas ?? 0} hint="aguardando triagem" />
-        <StatTile label="Em análise" value={(s?.em_analise ?? 0) + (s?.em_tratamento ?? 0)} />
-        <StatTile
-          label="Em atraso"
-          value={s?.em_atraso ?? 0}
-          tone={s?.em_atraso ? 'danger' : undefined}
-          hint="prazo vencido e ainda aberta"
+      <DashboardFilters options={options} />
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,26rem)_1fr]">
+        <SeverityDial
+          title="Total do período"
+          description="Composição por gravidade do tipo."
+          total={s?.total ?? 0}
+          data={porGravidade}
+          emptyLabel="Nenhuma manifestação neste recorte."
         />
-        <StatTile label="Aguardando resposta" value={s?.aguardando_resposta ?? 0} />
-        <StatTile label="Respondidas" value={s?.respondidas ?? 0} />
-        <StatTile label="Encerradas" value={s?.encerradas ?? 0} />
-        <StatTile
-          label="Tempo médio de resposta"
-          value={s?.tempo_medio_resposta != null ? `${s.tempo_medio_resposta} d` : '—'}
-          hint="da abertura até a resposta"
-        />
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <StatTile label="Novas" value={s?.novas ?? 0} hint="aguardando triagem" />
+          <StatTile label="Em análise" value={(s?.em_analise ?? 0) + (s?.em_tratamento ?? 0)} />
+          <StatTile
+            label="Em atraso"
+            value={s?.em_atraso ?? 0}
+            tone={s?.em_atraso ? 'danger' : undefined}
+            hint="prazo vencido e ainda aberta"
+          />
+          <StatTile label="Aguardando resposta" value={s?.aguardando_resposta ?? 0} />
+          <StatTile label="Encerradas" value={s?.encerradas ?? 0} />
+          <StatTile
+            label="Tempo médio de resposta"
+            value={s?.tempo_medio_resposta != null ? `${s.tempo_medio_resposta} d` : '—'}
+            hint="da abertura até a resposta"
+          />
+        </div>
       </div>
 
       <TrendChart
         title="Manifestações por dia"
         description={`Registros nos ${label}.`}
-        data={(series.data ?? []).map((r) => ({ dia: r.dia, total: Number(r.total) }))}
+        data={((series.data ?? []) as Array<{ dia: string; total: number }>).map((r) => ({
+          dia: r.dia,
+          total: Number(r.total),
+        }))}
       />
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <BarList title="Por tipo" data={toChart(porTipo.data)} />
-        <BarList title="Por status" data={statusData} />
         <BarList
-          title="Por filial"
+          title="Por tipo"
+          description="Cor e forma indicam a gravidade."
+          data={toChart(tipos)}
+        />
+        <BarList
+          title="Por status"
+          data={toChart(porStatus.data as Breakdown[] | null).map((r) => ({
+            ...r,
+            rotulo: STATUS_LABEL[r.rotulo as OccurrenceStatus] ?? r.rotulo,
+          }))}
+        />
+        <BarList
+          title="Por estado"
+          description="Onde estão as manifestações."
+          data={toChart(porEstado.data as Breakdown[] | null)}
+        />
+        <BarList
+          title="Por loja"
           description="Útil para comparar unidades."
-          data={toChart(porFilial.data)}
+          data={toChart(porFilial.data as Breakdown[] | null)}
         />
         <BarList
           title="Por categoria"
           description="Mostra quais assuntos mais aparecem."
-          data={toChart(porCategoria.data)}
+          data={toChart(porCategoria.data as Breakdown[] | null)}
+          className="lg:col-span-2"
         />
       </div>
 
       <p className="text-xs text-muted">
-        {s?.anonimas ?? 0} das {s?.total ?? 0} manifestações do período foram anônimas.{' '}
+        {s?.anonimas ?? 0} das {s?.total ?? 0} manifestações do recorte foram anônimas.{' '}
         <Link href="/painel/ocorrencias?manifestante=anonimo" className="underline underline-offset-4">
           Ver somente anônimas
         </Link>

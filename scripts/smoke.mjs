@@ -140,7 +140,9 @@ try {
   check('login entra no painel', page.url().includes('/painel'))
 
   const dash = await page.textContent('body')
-  check('dashboard mostra os contadores', dash.includes('Total de manifestações'))
+  // O total passou a viver no anel de gravidade, não num cartão à parte.
+  check('dashboard mostra o total e os contadores',
+    dash.includes('Total do período') && dash.includes('Em atraso'))
   check('dashboard renderiza o gráfico de evolução', (await page.locator('svg').count()) > 0)
   check('dashboard mostra as barras por tipo', dash.includes('Por tipo'))
 

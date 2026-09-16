@@ -146,6 +146,31 @@ mesmo jeito, e um limite que só existe no formulário não é um limite.
 Não há cobrança automática. A troca de plano vale na hora; quando entrar um meio
 de pagamento, ela passa a ser consequência do pagamento confirmado.
 
+### Cores por gravidade
+
+Cada tipo de manifestação tem uma **gravidade** (`occurrence_types.severity`),
+que decide sua cor e sua forma nos indicadores: denúncia é grave (vermelho ▲),
+reclamação e crítica requerem atenção (laranja ◆), elogio é positivo (verde ★) e
+o restante é neutro (azul ●). A empresa reclassifica os próprios tipos em
+Categorias — o sistema não tem como adivinhar se um tipo criado por ela é grave.
+
+Usar a escala de status aqui, e não uma paleta categórica, é deliberado:
+denúncia e elogio carregam valência oposta, e cor categórica desperdiçaria o
+canal de identidade re-codificando o que o comprimento da barra já mostra.
+
+**A forma não é enfeite.** As cores foram escolhidas por medição, com o
+validador da referência de visualização:
+
+| | ΔE visão normal | ΔE deuteranopia | contraste mínimo |
+| --- | --- | --- | --- |
+| Tema claro | 18,7 | 6,2 | 3,19:1 |
+| Tema escuro | 19,8 | 12,5 | 4,84:1 |
+
+No tema claro, vermelho e verde ficam em ΔE 6,2 sob deuteranopia — dentro da
+faixa que só é aceitável **com** codificação secundária. Por isso todo marcador
+carrega forma própria e rótulo por extenso, e as barras descrevem a gravidade no
+`aria-label`. Quem não distingue vermelho de verde lê pela forma e pelo texto.
+
 ### Cobrança
 
 O provedor de pagamento é quem decide o estado de uma assinatura paga — a
@@ -260,6 +285,7 @@ Rode `npm run db:types` sempre que o schema mudar e versione o resultado.
 | `npm run smoke` | Percorre canal público e painel ponta a ponta num Chromium real. |
 | `npm run smoke:saas` | Percorre cadastro, onboarding, planos, isolamento e bloqueio por assinatura. |
 | `npm run smoke:billing` | Exercita webhook, idempotência e ciclo de vida da assinatura. |
+| `npm run smoke:dashboard` | Confere gravidade, relógio do total e os filtros do dashboard. |
 | `scripts/verify-deploy.sh <url>` | Confere um ambiente publicado, sem escrever nada. |
 | `npm run seed:demo` | Cria uma empresa de demonstração com dados de exemplo. |
 | `npm run admin:create` | Cria o administrador da plataforma (uma vez, por ambiente). |

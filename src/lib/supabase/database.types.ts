@@ -689,6 +689,7 @@ export type Database = {
           id: string
           is_system: boolean
           name: string
+          severity: Database["public"]["Enums"]["occurrence_severity"]
           slug: string
           sort_order: number
           status: Database["public"]["Enums"]["record_status"]
@@ -700,6 +701,7 @@ export type Database = {
           id?: string
           is_system?: boolean
           name: string
+          severity?: Database["public"]["Enums"]["occurrence_severity"]
           slug: string
           sort_order?: number
           status?: Database["public"]["Enums"]["record_status"]
@@ -711,6 +713,7 @@ export type Database = {
           id?: string
           is_system?: boolean
           name?: string
+          severity?: Database["public"]["Enums"]["occurrence_severity"]
           slug?: string
           sort_order?: number
           status?: Database["public"]["Enums"]["record_status"]
@@ -1241,6 +1244,13 @@ export type Database = {
         Args: { p_company_id: string; p_plan_slug: string }
         Returns: Json
       }
+      company_states: {
+        Args: never
+        Returns: {
+          filiais: number
+          uf: string
+        }[]
+      }
       company_usage: { Args: { p_company_id: string }; Returns: Json }
       complete_onboarding: {
         Args: { p_company_id: string }
@@ -1269,15 +1279,35 @@ export type Database = {
         Returns: Json
       }
       dashboard_breakdown: {
-        Args: { p_days?: number; p_dimension: string }
+        Args: {
+          p_branch_id?: string
+          p_days?: number
+          p_dimension: string
+          p_state?: string
+          p_type_id?: string
+        }
         Returns: {
           rotulo: string
+          severidade: string
           total: number
         }[]
       }
-      dashboard_summary: { Args: { p_days?: number }; Returns: Json }
+      dashboard_summary: {
+        Args: {
+          p_branch_id?: string
+          p_days?: number
+          p_state?: string
+          p_type_id?: string
+        }
+        Returns: Json
+      }
       dashboard_timeseries: {
-        Args: { p_days?: number }
+        Args: {
+          p_branch_id?: string
+          p_days?: number
+          p_state?: string
+          p_type_id?: string
+        }
         Returns: {
           dia: string
           total: number
@@ -1365,6 +1395,7 @@ export type Database = {
         | "improcedente"
         | "parcialmente_procedente"
         | "nao_conclusivo"
+      occurrence_severity: "grave" | "atencao" | "neutro" | "positivo"
       occurrence_status:
         | "recebida"
         | "em_analise"
@@ -1522,6 +1553,7 @@ export const Constants = {
         "parcialmente_procedente",
         "nao_conclusivo",
       ],
+      occurrence_severity: ["grave", "atencao", "neutro", "positivo"],
       occurrence_status: [
         "recebida",
         "em_analise",

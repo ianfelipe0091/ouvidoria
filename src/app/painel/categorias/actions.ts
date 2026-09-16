@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 
 import { requireCompanyAdmin } from '@/lib/auth'
+import type { Database } from '@/lib/supabase/database.types'
 
 export type Result = { error?: string; ok?: boolean }
 
@@ -85,5 +86,29 @@ export async function toggleRecord(
 
   if (error) return { error: error.message }
   revalidatePath('/painel/categorias')
+  return { ok: true }
+}
+
+/**
+ * Reclassifica a gravidade de um tipo.
+ *
+ * Tipos criados pela empresa nascem neutros: o sistema não tem como adivinhar
+ * se "Assédio moral" é grave ou se "Parabéns" é positivo. Quem sabe é quem
+ * cadastrou, e é essa classificação que decide a cor nos indicadores.
+ */
+export async function setTypeSeverity(
+  id: string,
+  severity: Database['public']['Enums']['occurrence_severity'],
+): Promise<Result> {
+  const { supabase } = await requireCompanyAdmin()
+
+  const { error } = await supabase
+    .from('occurrence_types')
+    .update({ severity })
+    .eq('id', id)
+
+  if (error) return { error: error.message }
+  revalidatePath('/painel/categorias')
+  revalidatePath('/painel')
   return { ok: true }
 }

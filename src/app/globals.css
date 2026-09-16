@@ -26,6 +26,22 @@
      contraste >= 3:1, dentro da faixa de luminosidade e do piso de croma. */
   --chart: #2a78d6;
   --chart-grid: #e8e8ec;
+
+  /* Escala de gravidade dos tipos de manifestação.
+     Escolhida por medição, não a olho. No tema claro: separação ΔE 18,7 para
+     visão normal (todos os pares distinguíveis) e contraste mínimo 3,19:1.
+     Sob deuteranopia a separação cai a ΔE 6,2 — dentro da faixa que só é
+     aceitável COM codificação secundária, que é por isso que todo marcador
+     carrega também uma forma e o rótulo por extenso. */
+  --sev-grave: #b42318;
+  --sev-atencao: #d97706;
+  --sev-neutro: #2a78d6;
+  --sev-positivo: #16a34a;
+
+  --sev-grave-soft: #fdeceb;
+  --sev-atencao-soft: #fdf3e3;
+  --sev-neutro-soft: #e8eefc;
+  --sev-positivo-soft: #e7f6ef;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -51,6 +67,18 @@
 
     --chart: #3987e5;
     --chart-grid: #26262f;
+
+    /* No escuro a mesma escala alcança ΔE 12,5 sob deuteranopia — acima do
+       alvo de 8 —, com contraste mínimo 4,84:1. */
+    --sev-grave: #ef4444;
+    --sev-atencao: #f59e0b;
+    --sev-neutro: #60a5fa;
+    --sev-positivo: #34d399;
+
+    --sev-grave-soft: #2e1616;
+    --sev-atencao-soft: #2c2213;
+    --sev-neutro-soft: #16203a;
+    --sev-positivo-soft: #12291f;
   }
 }
 
@@ -74,6 +102,14 @@
   --color-info-soft: var(--info-soft);
   --color-chart: var(--chart);
   --color-chart-grid: var(--chart-grid);
+  --color-sev-grave: var(--sev-grave);
+  --color-sev-atencao: var(--sev-atencao);
+  --color-sev-neutro: var(--sev-neutro);
+  --color-sev-positivo: var(--sev-positivo);
+  --color-sev-grave-soft: var(--sev-grave-soft);
+  --color-sev-atencao-soft: var(--sev-atencao-soft);
+  --color-sev-neutro-soft: var(--sev-neutro-soft);
+  --color-sev-positivo-soft: var(--sev-positivo-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
