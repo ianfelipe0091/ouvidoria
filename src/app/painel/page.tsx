@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-import { BarList, SeverityDial, StatTile, TrendChart } from '@/components/charts'
+import { BarList, FlowChart, Gauge, SeverityDial, StatTile } from '@/components/charts'
 import { PageHeader } from '@/components/ui'
 import { requireProfile } from '@/lib/auth'
 import {
@@ -54,10 +54,9 @@ export default async function DashboardPage(props: PageProps<'/painel'>) {
     p_type_id: tipo ?? undefined,
   }
 
-  const [summary, series, porTipo, porFilial, porEstado, porCategoria, porStatus,
-         states, branches, types] = await Promise.all([
+  const [summary, porTipo, porFilial, porEstado, porCategoria, porStatus,
+         states, branches, types, gauge, flow] = await Promise.all([
     supabase.rpc('dashboard_summary', filtros),
-    supabase.rpc('dashboard_timeseries', filtros),
     supabase.rpc('dashboard_breakdown', { p_dimension: 'tipo', ...filtros }),
     supabase.rpc('dashboard_breakdown', { p_dimension: 'filial', ...filtros }),
     supabase.rpc('dashboard_breakdown', { p_dimension: 'estado', ...filtros }),
@@ -66,10 +65,15 @@ export default async function DashboardPage(props: PageProps<'/painel'>) {
     supabase.rpc('company_states'),
     supabase.from('branches').select('id, name, address_state').eq('status', 'ativo').order('name'),
     supabase.from('occurrence_types').select('id, name').eq('status', 'ativo').order('sort_order'),
+    supabase.rpc('dashboard_sla_gauge', filtros),
+    supabase.rpc('dashboard_flow', filtros),
   ])
 
   const s = (summary.data as unknown as Summary) ?? null
   const tipos = (porTipo.data ?? []) as Breakdown[]
+  const sla = gauge.data as unknown as {
+    taxa: number | null; no_prazo: number; atrasadas: number; abertas_atrasadas: number; avaliadas: number
+  } | null
 
   const toChart = (rows: Breakdown[] | null) =>
     (rows ?? []).map((r) => ({
@@ -113,7 +117,7 @@ export default async function DashboardPage(props: PageProps<'/painel'>) {
 
       <DashboardFilters options={options} />
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,26rem)_1fr]">
+      <div className="grid gap-5 lg:grid-cols-3">
         <SeverityDial
           title="Total do período"
           description="Composição por gravidade do tipo."
@@ -122,31 +126,43 @@ export default async function DashboardPage(props: PageProps<'/painel'>) {
           emptyLabel="Nenhuma manifestação neste recorte."
         />
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <Gauge
+          title="Cumprimento de prazo"
+          description="Fração no prazo entre as com SLA em curso."
+          value={sla?.taxa ?? null}
+          caption={
+            sla && sla.avaliadas > 0
+              ? `${sla.no_prazo} no prazo · ${sla.atrasadas} em atraso`
+              : 'Sem manifestações com prazo neste recorte.'
+          }
+        />
+
+        <div className="grid grid-cols-2 gap-3">
           <StatTile label="Novas" value={s?.novas ?? 0} hint="aguardando triagem" />
           <StatTile label="Em análise" value={(s?.em_analise ?? 0) + (s?.em_tratamento ?? 0)} />
           <StatTile
             label="Em atraso"
             value={s?.em_atraso ?? 0}
             tone={s?.em_atraso ? 'danger' : undefined}
-            hint="prazo vencido e ainda aberta"
+            hint="prazo vencido"
           />
-          <StatTile label="Aguardando resposta" value={s?.aguardando_resposta ?? 0} />
+          <StatTile label="Aguardando" value={s?.aguardando_resposta ?? 0} hint="resposta pendente" />
           <StatTile label="Encerradas" value={s?.encerradas ?? 0} />
           <StatTile
-            label="Tempo médio de resposta"
+            label="Tempo médio"
             value={s?.tempo_medio_resposta != null ? `${s.tempo_medio_resposta} d` : '—'}
-            hint="da abertura até a resposta"
+            hint="até a resposta"
           />
         </div>
       </div>
 
-      <TrendChart
-        title="Manifestações por dia"
-        description={`Registros nos ${label}.`}
-        data={((series.data ?? []) as Array<{ dia: string; total: number }>).map((r) => ({
+      <FlowChart
+        title="Recebidas × encerradas"
+        description={`Entradas e saídas por dia nos ${label}.`}
+        data={((flow.data ?? []) as Array<{ dia: string; recebidas: number; encerradas: number }>).map((r) => ({
           dia: r.dia,
-          total: Number(r.total),
+          recebidas: Number(r.recebidas),
+          encerradas: Number(r.encerradas),
         }))}
       />
 

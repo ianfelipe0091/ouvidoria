@@ -1292,6 +1292,28 @@ export type Database = {
           total: number
         }[]
       }
+      dashboard_flow: {
+        Args: {
+          p_branch_id?: string
+          p_days?: number
+          p_state?: string
+          p_type_id?: string
+        }
+        Returns: {
+          dia: string
+          encerradas: number
+          recebidas: number
+        }[]
+      }
+      dashboard_sla_gauge: {
+        Args: {
+          p_branch_id?: string
+          p_days?: number
+          p_state?: string
+          p_type_id?: string
+        }
+        Returns: Json
+      }
       dashboard_summary: {
         Args: {
           p_branch_id?: string

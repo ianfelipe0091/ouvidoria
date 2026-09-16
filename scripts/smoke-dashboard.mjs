@@ -106,6 +106,31 @@ try {
   check('barra descreve a gravidade para leitor de tela',
     Boolean(barraGrave?.includes('Grave')), barraGrave ?? 'sem rótulo')
 
+  console.log('\nVelocímetro de prazo (SLA)')
+  const { data: gaugeEsperado } = await comoUsuario.rpc('dashboard_sla_gauge', { p_days: 90 })
+  const taxa = gaugeEsperado?.taxa
+  const corpoGauge = await page.textContent('body')
+  check('gauge mostra a taxa de cumprimento de prazo',
+    taxa == null || corpoGauge.includes(`${taxa}%`), `esperado ${taxa}%`)
+  // A zona nunca depende só da cor: o rótulo por extenso acompanha.
+  const zonaEsperada = taxa == null ? null : taxa < 70 ? 'Crítico' : taxa < 90 ? 'Requer atenção' : 'Saudável'
+  check('gauge nomeia a zona de saúde (não só a cor)',
+    zonaEsperada == null || corpoGauge.includes(zonaEsperada), zonaEsperada ?? 'sem dados')
+  const gaugeAria = await page.locator('svg[aria-label*="Cumprimento de prazo"]').count()
+  check('gauge tem descrição acessível', gaugeAria >= 1)
+
+  console.log('\nFluxo recebidas × encerradas')
+  const { data: fluxoEsperado } = await comoUsuario.rpc('dashboard_flow', { p_days: 90 })
+  const recebidasTotal = fluxoEsperado.reduce((soma, d) => soma + Number(d.recebidas), 0)
+  const encerradasTotal = fluxoEsperado.reduce((soma, d) => soma + Number(d.encerradas), 0)
+  const fluxoAria = await page.locator(`svg[aria-label*="${recebidasTotal} recebidas"]`).count()
+  check('gráfico de fluxo soma as recebidas do período', fluxoAria >= 1,
+    `esperado ${recebidasTotal} recebidas`)
+  check('legenda do fluxo traz as duas séries',
+    corpoGauge.includes('Recebidas') && corpoGauge.includes('Encerradas'))
+  check('fluxo descreve encerradas para leitor de tela',
+    (await page.locator(`svg[aria-label*="${encerradasTotal} encerradas"]`).count()) >= 1)
+
   console.log('\nFiltro por estado')
   const { data: porEstado } = await comoUsuario.rpc('dashboard_breakdown', { p_dimension: 'estado', p_days: 90 })
   const uf = porEstado.find((r) => r.rotulo !== 'Não informado')

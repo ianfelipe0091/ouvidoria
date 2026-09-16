@@ -38,6 +38,9 @@
   --sev-neutro: #2a78d6;
   --sev-positivo: #16a34a;
 
+  --flow-in: #2a78d6;
+  --flow-out: #16a34a;
+
   --sev-grave-soft: #fdeceb;
   --sev-atencao-soft: #fdf3e3;
   --sev-neutro-soft: #e8eefc;
@@ -75,6 +78,9 @@
     --sev-neutro: #60a5fa;
     --sev-positivo: #34d399;
 
+    --flow-in: #3987e5;
+    --flow-out: #16a34a;
+
     --sev-grave-soft: #2e1616;
     --sev-atencao-soft: #2c2213;
     --sev-neutro-soft: #16203a;
@@ -102,6 +108,8 @@
   --color-info-soft: var(--info-soft);
   --color-chart: var(--chart);
   --color-chart-grid: var(--chart-grid);
+  --color-flow-in: var(--flow-in);
+  --color-flow-out: var(--flow-out);
   --color-sev-grave: var(--sev-grave);
   --color-sev-atencao: var(--sev-atencao);
   --color-sev-neutro: var(--sev-neutro);

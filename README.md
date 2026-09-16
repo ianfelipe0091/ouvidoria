@@ -146,6 +146,21 @@ mesmo jeito, e um limite que só existe no formulário não é um limite.
 Não há cobrança automática. A troca de plano vale na hora; quando entrar um meio
 de pagamento, ela passa a ser consequência do pagamento confirmado.
 
+### Gráficos de análise
+
+O dashboard traz três leituras rápidas no topo, além das barras por dimensão:
+
+- **Relógio de gravidade** — anel com o total ao centro, segmentado pela
+  gravidade dos tipos: quanto do volume é grave, num olhar.
+- **Velocímetro de prazo (SLA)** — medidor radial 0–100 com zonas (crítico,
+  atenção, saudável) e ponteiro, mostrando a fração de manifestações no prazo.
+  A zona vem sempre com número e rótulo por extenso — a cor nunca decide sozinha.
+- **Recebidas × encerradas** — duas séries na mesma escala ao longo do tempo,
+  respondendo se a equipe encerra no ritmo em que recebe. As cores do par
+  (azul × verde) separam a ΔE 24–27, bem acima do piso.
+
+Todos respeitam os filtros de período, estado, loja e tipo.
+
 ### Cores por gravidade
 
 Cada tipo de manifestação tem uma **gravidade** (`occurrence_types.severity`),
@@ -285,7 +300,7 @@ Rode `npm run db:types` sempre que o schema mudar e versione o resultado.
 | `npm run smoke` | Percorre canal público e painel ponta a ponta num Chromium real. |
 | `npm run smoke:saas` | Percorre cadastro, onboarding, planos, isolamento e bloqueio por assinatura. |
 | `npm run smoke:billing` | Exercita webhook, idempotência e ciclo de vida da assinatura. |
-| `npm run smoke:dashboard` | Confere gravidade, relógio do total e os filtros do dashboard. |
+| `npm run smoke:dashboard` | Confere gravidade, velocímetro de prazo, fluxo e os filtros do dashboard. |
 | `scripts/verify-deploy.sh <url>` | Confere um ambiente publicado, sem escrever nada. |
 | `npm run seed:demo` | Cria uma empresa de demonstração com dados de exemplo. |
 | `npm run admin:create` | Cria o administrador da plataforma (uma vez, por ambiente). |

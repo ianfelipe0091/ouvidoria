@@ -395,3 +395,234 @@ export function SeverityDial({
     </Card>
   )
 }
+
+/**
+ * Velocímetro de saúde: um arco de 0 a 100 com zonas coloridas e um ponteiro.
+ *
+ * É o "relógio" da operação. Uma taxa isolada — cumprimento de prazo — contra
+ * um alvo é exatamente o caso de um medidor radial: o arco mostra a posição na
+ * escala, as zonas dizem se está saudável, e o número ao centro dá o valor
+ * exato. A cor nunca decide sozinha — o número e o rótulo da zona sempre
+ * acompanham, então quem não distingue vermelho de verde lê pelo texto.
+ *
+ * Zonas (quanto maior, melhor): < aviso = crítico, < bom = atenção, resto = ok.
+ */
+export function Gauge({
+  title, description, value, suffix = '%', zones = { warn: 70, good: 90 },
+  caption,
+}: {
+  title: string
+  description?: string
+  value: number | null
+  suffix?: string
+  zones?: { warn: number; good: number }
+  caption?: ReactNode
+}) {
+  const width = 240
+  const height = 150
+  const cx = width / 2
+  const cy = height - 12
+  const raio = 96
+  const stroke = 16
+
+  // Semicírculo: 180° (esquerda) a 0° (direita).
+  const anguloDe = (v: number) => Math.PI - (Math.max(0, Math.min(100, v)) / 100) * Math.PI
+  const ponto = (v: number, r: number) => ({
+    x: cx + r * Math.cos(anguloDe(v)),
+    y: cy - r * Math.sin(anguloDe(v)),
+  })
+  const arco = (de: number, ate: number, r: number) => {
+    const p1 = ponto(de, r)
+    const p2 = ponto(ate, r)
+    const grande = ate - de > 50 ? 1 : 0
+    // varredura 0: sentido anti-horário, da esquerda para a direita.
+    return `M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} A ${r} ${r} 0 ${grande} 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`
+  }
+
+  const temValor = value !== null
+  const v = temValor ? value : 0
+  const zona = v < zones.warn ? 'grave' : v < zones.good ? 'atencao' : 'positivo'
+  const zonaCor =
+    zona === 'grave' ? 'var(--sev-grave)' : zona === 'atencao' ? 'var(--sev-atencao)' : 'var(--sev-positivo)'
+  const zonaRotulo = zona === 'grave' ? 'Crítico' : zona === 'atencao' ? 'Requer atenção' : 'Saudável'
+
+  const ponteiro = ponto(v, raio - stroke / 2 - 4)
+
+  return (
+    <Card>
+      <CardHeader title={title} description={description} />
+      <div className="flex flex-col items-center gap-2 px-5 py-5">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          className="w-full max-w-[16rem]"
+          role="img"
+          aria-label={
+            temValor
+              ? `${title}: ${v}${suffix} — ${zonaRotulo}.`
+              : `${title}: sem dados no período.`
+          }
+        >
+          {/* Três zonas de fundo, em tom suave, marcam a régua de saúde. */}
+          <path d={arco(0, zones.warn, raio)} fill="none" stroke="var(--sev-grave-soft)" strokeWidth={stroke} strokeLinecap="butt" />
+          <path d={arco(zones.warn, zones.good, raio)} fill="none" stroke="var(--sev-atencao-soft)" strokeWidth={stroke} strokeLinecap="butt" />
+          <path d={arco(zones.good, 100, raio)} fill="none" stroke="var(--sev-positivo-soft)" strokeWidth={stroke} strokeLinecap="butt" />
+
+          {/* Arco preenchido até o valor, na cor da zona atingida. */}
+          {temValor ? (
+            <path
+              d={arco(0, Math.max(0.5, v), raio)}
+              fill="none"
+              stroke={zonaCor}
+              strokeWidth={stroke}
+              strokeLinecap="butt"
+            />
+          ) : null}
+
+          {/* Ponteiro do relógio. */}
+          {temValor ? (
+            <>
+              <line
+                x1={cx}
+                y1={cy}
+                x2={ponteiro.x.toFixed(2)}
+                y2={ponteiro.y.toFixed(2)}
+                stroke="var(--foreground)"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+              />
+              <circle cx={cx} cy={cy} r={4} fill="var(--foreground)" />
+            </>
+          ) : null}
+
+          {/* Extremos da régua. */}
+          <text x={ponto(0, raio).x - 4} y={cy + 4} textAnchor="end" className="fill-[var(--muted)] text-[9px]">0</text>
+          <text x={ponto(100, raio).x + 4} y={cy + 4} textAnchor="start" className="fill-[var(--muted)] text-[9px]">100</text>
+        </svg>
+
+        <div className="-mt-6 flex flex-col items-center">
+          <span className="text-3xl font-semibold tabular-nums tracking-tight">
+            {temValor ? `${v}${suffix}` : '—'}
+          </span>
+          {temValor ? (
+            <span
+              className="mt-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+              style={{ background: `var(--sev-${zona}-soft)`, color: zonaCor }}
+            >
+              {zonaRotulo}
+            </span>
+          ) : (
+            <span className="mt-1 text-[11px] text-muted">sem dados no período</span>
+          )}
+        </div>
+
+        {caption ? <p className="mt-1 text-center text-xs text-muted">{caption}</p> : null}
+      </div>
+    </Card>
+  )
+}
+
+/**
+ * Fluxo de entradas e saídas: duas séries (recebidas, encerradas) na mesma
+ * escala, ao longo do tempo.
+ *
+ * Uma escala só, nunca duas — as duas séries contam a mesma coisa (número de
+ * manifestações por dia), então comparar as alturas é o ponto. A legenda é
+ * obrigatória com duas séries; a cor foi validada (ΔE 25 entre azul e verde) e
+ * ainda assim cada linha tem seu nome na legenda, para não depender da cor.
+ *
+ * A leitura que importa: quando a linha de recebidas descola para cima da de
+ * encerradas, o acúmulo está crescendo.
+ */
+export function FlowChart({
+  title, description, data,
+}: {
+  title: string
+  description?: string
+  data: Array<{ dia: string; recebidas: number; encerradas: number }>
+}) {
+  const width = 720
+  const height = 200
+  const padding = { top: 14, right: 10, bottom: 24, left: 30 }
+  const plotWidth = width - padding.left - padding.right
+  const plotHeight = height - padding.top - padding.bottom
+
+  const max = Math.max(1, ...data.flatMap((d) => [d.recebidas, d.encerradas]))
+  const stepX = data.length > 1 ? plotWidth / (data.length - 1) : 0
+  const x = (i: number) => padding.left + i * stepX
+  const y = (v: number) => padding.top + plotHeight - (v / max) * plotHeight
+
+  const linha = (chave: 'recebidas' | 'encerradas') =>
+    data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${x(i)} ${y(d[chave])}`).join(' ')
+  const area = (chave: 'recebidas' | 'encerradas') =>
+    data.length > 1
+      ? `${linha(chave)} L ${x(data.length - 1)} ${padding.top + plotHeight} L ${x(0)} ${padding.top + plotHeight} Z`
+      : ''
+
+  const ticks = [0, Math.round(max / 2), max].filter((v, i, a) => a.indexOf(v) === i)
+  const totalRecebidas = data.reduce((s, d) => s + d.recebidas, 0)
+  const totalEncerradas = data.reduce((s, d) => s + d.encerradas, 0)
+
+  const series = [
+    { chave: 'recebidas' as const, rotulo: 'Recebidas', cor: 'var(--flow-in)', total: totalRecebidas },
+    { chave: 'encerradas' as const, rotulo: 'Encerradas', cor: 'var(--flow-out)', total: totalEncerradas },
+  ]
+
+  return (
+    <Card>
+      <CardHeader
+        title={title}
+        description={description}
+        action={
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            {series.map((s) => (
+              <span key={s.chave} className="flex items-center gap-1.5">
+                <span aria-hidden className="h-0.5 w-4 rounded-full" style={{ background: s.cor }} />
+                {s.rotulo}
+                <span className="font-medium tabular-nums">{s.total}</span>
+              </span>
+            ))}
+          </div>
+        }
+      />
+      <div className="overflow-x-auto px-5 py-4">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          className="h-48 w-full min-w-[460px]"
+          role="img"
+          aria-label={`Fluxo do período: ${totalRecebidas} recebidas e ${totalEncerradas} encerradas.`}
+        >
+          {ticks.map((v) => (
+            <g key={v}>
+              <line x1={padding.left} x2={width - padding.right} y1={y(v)} y2={y(v)} stroke="var(--chart-grid)" strokeWidth={1} />
+              <text x={padding.left - 6} y={y(v) + 3} textAnchor="end" className="fill-[var(--muted)] text-[9px] tabular-nums">{v}</text>
+            </g>
+          ))}
+
+          {/* Encerradas ao fundo, recebidas na frente: a que interessa quando
+              elas se cruzam é a de recebidas subindo. */}
+          {data.length > 1 ? <path d={area('encerradas')} fill="var(--flow-out)" opacity={0.1} /> : null}
+          {data.length > 1 ? <path d={area('recebidas')} fill="var(--flow-in)" opacity={0.1} /> : null}
+
+          <path d={linha('encerradas')} fill="none" stroke="var(--flow-out)" strokeWidth={2} strokeLinejoin="round" />
+          <path d={linha('recebidas')} fill="none" stroke="var(--flow-in)" strokeWidth={2} strokeLinejoin="round" />
+
+          {data.map((d, i) => (
+            <g key={d.dia}>
+              <circle cx={x(i)} cy={y(d.encerradas)} r={3} fill="var(--flow-out)" opacity={d.encerradas > 0 ? 1 : 0} />
+              <circle cx={x(i)} cy={y(d.recebidas)} r={3} fill="var(--flow-in)" opacity={d.recebidas > 0 ? 1 : 0}>
+                <title>{`${shortDate(d.dia)} — recebidas: ${d.recebidas}, encerradas: ${d.encerradas}`}</title>
+              </circle>
+            </g>
+          ))}
+
+          {data.length > 1 ? (
+            <>
+              <text x={x(0)} y={height - 6} textAnchor="start" className="fill-[var(--muted)] text-[9px]">{shortDate(data[0].dia)}</text>
+              <text x={x(data.length - 1)} y={height - 6} textAnchor="end" className="fill-[var(--muted)] text-[9px]">{shortDate(data[data.length - 1].dia)}</text>
+            </>
+          ) : null}
+        </svg>
+      </div>
+    </Card>
+  )
+}
