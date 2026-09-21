@@ -16,21 +16,20 @@ export default async function OccurrencePage(props: PageProps<'/painel/ocorrenci
   const { id } = await props.params
   const { profile, supabase } = await requireProfile()
 
-  const { data: occurrence } = await supabase
-    .from('occurrences')
-    .select(
-      `*, occurrence_types(name), categories(name), subjects(name),
-       branches(name), departments(name), profiles(full_name)`,
-    )
-    .eq('id', id)
-    .maybeSingle()
-
-  // Sem linha aqui significa "não existe" ou "não é do seu tenant" — o RLS não
-  // distingue os dois, e a interface também não deve.
-  if (!occurrence) notFound()
-
-  const [settings, messages, events, tasks, departments, assignees, rating, attachments] =
+  // Tudo aqui é buscado pelo `id` da URL, não pela linha da manifestação, então
+  // nada precisa esperar a consulta principal: antes a página fazia duas rodadas
+  // em fila, agora faz uma. Se a manifestação não for do tenant, o RLS devolve
+  // vazio em todas — as consultas a mais não revelam nada.
+  const [occurrenceRow, settings, messages, events, tasks, departments, assignees, rating, attachments] =
     await Promise.all([
+    supabase
+      .from('occurrences')
+      .select(
+        `*, occurrence_types(name), categories(name), subjects(name),
+         branches(name), departments(name), profiles(full_name)`,
+      )
+      .eq('id', id)
+      .maybeSingle(),
     profile.company_id
       ? supabase
           .from('company_settings')
@@ -64,6 +63,11 @@ export default async function OccurrencePage(props: PageProps<'/painel/ocorrenci
       .eq('occurrence_id', id)
       .order('created_at'),
   ])
+
+  // Sem linha aqui significa "não existe" ou "não é do seu tenant" — o RLS não
+  // distingue os dois, e a interface também não deve.
+  const occurrence = occurrenceRow.data
+  if (!occurrence) notFound()
 
   const warningDays = settings.data?.sla_warning_days ?? 2
   const sla = slaState(occurrence.status, occurrence.due_at, warningDays)

@@ -9,29 +9,39 @@ import type { Database } from '@/lib/supabase/database.types'
 export type Profile = Database['public']['Tables']['profiles']['Row']
 
 /**
- * Sessão da requisição: usuário do Auth mais o perfil que o liga ao tenant.
+ * Sessão da requisição: identidade do token mais o perfil que a liga ao tenant.
  *
- * `cache()` é o ponto central. Layout e página pedem a sessão cada um — antes
- * isso custava duas validações de token e duas leituras de `profiles` por
- * navegação, em série. Com o cache, a primeira chamada resolve e as demais
- * reaproveitam o resultado dentro da mesma requisição.
+ * Duas coisas seguram o custo aqui, porque isto roda em toda tela do painel:
  *
- * `getUser()` valida o token junto ao servidor de Auth; não troque por
- * `getSession()`, que apenas lê o cookie sem verificar a assinatura.
+ * `cache()` do React — layout e página pedem a sessão cada um. Sem o cache,
+ * cada navegação pagava duas vezes pela mesma verificação e pela mesma leitura
+ * de `profiles`.
+ *
+ * `getClaims()` no lugar de `getUser()` — o projeto assina os tokens em ES256,
+ * então a assinatura é conferida aqui mesmo, com a chave pública buscada uma
+ * vez e reaproveitada. `getUser()` perguntava ao servidor de Auth a cada
+ * renderização, o que custava uma ida à rede inteira por tela.
+ *
+ * A verificação continua sendo criptográfica: um token forjado ou adulterado
+ * não passa. O que ela não enxerga é uma conta desativada no intervalo até o
+ * token expirar — e isso o `status` do perfil, lido logo abaixo, cobre.
+ *
+ * Não troque por `getSession()`: esse lê o cookie sem conferir assinatura.
  */
 const loadSession = cache(async () => {
   const supabase = await createClient()
-  const { data: auth } = await supabase.auth.getUser()
+  const { data } = await supabase.auth.getClaims()
+  const userId = data?.claims?.sub
 
-  if (!auth?.user) return { supabase, user: null, profile: null }
+  if (!userId) return { supabase, userId: null, profile: null }
 
   const { data: profile } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', auth.user.id)
+    .eq('id', userId)
     .maybeSingle()
 
-  return { supabase, user: auth.user, profile: profile ?? null }
+  return { supabase, userId, profile: profile ?? null }
 })
 
 /**
@@ -45,9 +55,9 @@ export async function requireProfile(): Promise<{
   profile: Profile
   supabase: Awaited<ReturnType<typeof createClient>>
 }> {
-  const { supabase, user, profile } = await loadSession()
+  const { supabase, userId, profile } = await loadSession()
 
-  if (!user) {
+  if (!userId) {
     redirect('/entrar')
   }
 

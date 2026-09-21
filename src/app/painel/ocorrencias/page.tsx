@@ -14,13 +14,21 @@ export default async function OccurrencesPage(props: PageProps<'/painel/ocorrenc
   const filters = await props.searchParams
   const { profile, supabase } = await requireProfile()
 
-  const { data: settings } = profile.company_id
-    ? await supabase
-        .from('company_settings')
-        .select('sla_warning_days')
-        .eq('company_id', profile.company_id)
-        .maybeSingle()
-    : { data: null }
+  // As opções dos filtros não dependem do recorte nem do prazo configurado, e
+  // antes eram buscadas depois da listagem — três idas ao banco em fila. Saem
+  // junto com a configuração de SLA; só a listagem precisa esperar, porque o
+  // filtro de atraso usa `warningDays`.
+  const [settings, options] = await Promise.all([
+    profile.company_id
+      ? supabase
+          .from('company_settings')
+          .select('sla_warning_days')
+          .eq('company_id', profile.company_id)
+          .maybeSingle()
+          .then((r) => r.data)
+      : null,
+    loadFilterOptions(supabase),
+  ])
   const warningDays = settings?.sla_warning_days ?? 2
 
   const page = Math.max(1, Number(filters.pagina) || 1)
@@ -40,7 +48,6 @@ export default async function OccurrencesPage(props: PageProps<'/painel/ocorrenc
     base, filters, warningDays,
   )
 
-  const options = await loadFilterOptions(supabase)
   const total = count ?? 0
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
