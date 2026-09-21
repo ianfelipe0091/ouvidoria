@@ -80,7 +80,11 @@ try {
   console.log('\nSite público')
   await page.goto(BASE, { waitUntil: 'networkidle' })
   const home = await page.textContent('body')
-  check('landing identifica a plataforma como SaaS', home.includes('Plataforma SaaS'))
+  // O texto do selo mudou no redesenho da landing ("Plataforma SaaS ·
+  // multiempresa" virou "Plataforma de Ouvidoria - multiempresa"). O que a
+  // verificação garante segue igual: a página se apresenta como produto que
+  // atende várias empresas, e não como sistema de uma só.
+  check('landing identifica a plataforma como multiempresa', home.includes('multiempresa'))
   check('landing lista os planos do banco',
     home.includes('Basic') && home.includes('Professional') && home.includes('Enterprise'))
   check('landing mostra preço', /R\$\s?\d/.test(home))

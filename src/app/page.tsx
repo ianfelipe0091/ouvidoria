@@ -36,11 +36,19 @@ export const metadata: Metadata = {
 
 /**
  * A landing não tem nada por visitante: é a mesma página para todo mundo. Sem
- * cookies na consulta de planos, o Next a pré-renderiza e a serve do cache,
- * revalidando de hora em hora — é a diferença entre servir um HTML pronto e
- * montar a página (com ida ao banco) a cada visita.
+ * cookies na consulta de planos, o Next a pré-renderiza no build e serve um
+ * HTML pronto, em vez de montar a página — com ida ao banco — a cada visita.
+ *
+ * Estática de vez, e não com `revalidate`: com revalidação por tempo, o Next
+ * mantinha aberta a conexão do prefetch desta página (o link da marca aparece
+ * em todo cabeçalho), e cada uma segurava por 30s um dos poucos slots de
+ * conexão que o navegador tem por origem.
+ *
+ * O preço disso é que mudança no catálogo de planos só aparece no próximo
+ * deploy. Cabe: o catálogo vive em migração, não numa tela de edição — o
+ * painel da plataforma apenas atribui planos às empresas, não os altera.
  */
-export const revalidate = 3600
+export const revalidate = false
 
 // Públicos-alvo do carrossel "cresce com você". Texto e imagens fiéis à referência.
 const AUDIENCES: Audience[] = [
