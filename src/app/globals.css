@@ -9,9 +9,15 @@
   --foreground: #16161a;
   --muted: #62626d;
   --border: #e3e3e7;
-  --accent: #3538cd;
+  /* Mesmo azul da landing: o painel é a continuação do site, não outra marca. */
+  --accent: oklch(0.53 0.22 263);
+  --accent-hover: oklch(0.48 0.22 263);
   --accent-foreground: #ffffff;
-  --accent-soft: #eef0ff;
+  --accent-soft: oklch(0.95 0.03 263);
+
+  /* Monoespaçada do sistema — protocolos e CNPJ pedem largura fixa, mas não
+     justificam baixar uma família inteira só para isso. */
+  --mono-stack: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 
   --ok: #047857;
   --ok-soft: #e7f6ef;
@@ -55,9 +61,10 @@
     --foreground: #ededf0;
     --muted: #9d9dab;
     --border: #2a2a33;
-    --accent: #8b8cf5;
+    --accent: oklch(0.72 0.17 263);
+    --accent-hover: oklch(0.78 0.17 263);
     --accent-foreground: #0b0b0e;
-    --accent-soft: #1e1e3a;
+    --accent-soft: oklch(0.29 0.07 263);
 
     --ok: #4ade80;
     --ok-soft: #12291f;
@@ -96,6 +103,7 @@
   --color-muted: var(--muted);
   --color-border: var(--border);
   --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent-soft: var(--accent-soft);
   --color-ok: var(--ok);
@@ -118,14 +126,14 @@
   --color-sev-atencao-soft: var(--sev-atencao-soft);
   --color-sev-neutro-soft: var(--sev-neutro-soft);
   --color-sev-positivo-soft: var(--sev-positivo-soft);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-poppins);
+  --font-mono: var(--mono-stack);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-poppins), system-ui, sans-serif;
 }
 
 /* O foco precisa ser visível em qualquer fundo: é o único guia de quem navega

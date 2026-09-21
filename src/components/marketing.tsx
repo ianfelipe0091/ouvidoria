@@ -1,22 +1,25 @@
+import Image from 'next/image'
 import Link from 'next/link'
 
 import { Badge, LinkButton, cn } from '@/components/ui'
 import { BRAND, formatMoney } from '@/lib/brand'
 
+import logoMark from '@/../public/landing/logo-o.png'
+import logoWordmark from '@/../public/landing/logo.png'
+
 /** Cabeçalho do site público. Distinto do cabeçalho do painel de propósito. */
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-surface/90 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-3">
-        <Link href="/" className="flex items-center gap-2">
-          <Logo />
-          <span className="text-sm font-semibold">{BRAND.name}</span>
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-3">
+        <Link href="/" aria-label={BRAND.name} className="flex items-center">
+          <Image src={logoWordmark} alt={BRAND.name} priority className="h-8 w-auto" />
         </Link>
         <nav className="flex items-center gap-1 text-sm">
-          <Link href="/#planos" className="rounded-lg px-3 py-1.5 text-muted hover:bg-surface-muted">
+          <Link href="/#planos" className="rounded-lg px-3 py-1.5 font-medium hover:text-accent">
             Planos
           </Link>
-          <Link href="/entrar" className="rounded-lg px-3 py-1.5 text-muted hover:bg-surface-muted">
+          <Link href="/entrar" className="rounded-lg px-3 py-1.5 font-medium hover:text-accent">
             Entrar
           </Link>
           <LinkButton href="/criar-conta" size="sm">
@@ -44,17 +47,17 @@ export function SiteFooter() {
   )
 }
 
+/** Símbolo da marca. É a mesma arte da landing, não uma aproximação em CSS. */
 export function Logo({ className }: { className?: string }) {
   return (
-    <span
+    <Image
+      src={logoMark}
+      alt=""
       aria-hidden
-      className={cn(
-        'grid size-7 shrink-0 place-items-center rounded-lg bg-accent text-sm font-bold text-accent-foreground',
-        className,
-      )}
-    >
-      O
-    </span>
+      priority
+      sizes="32px"
+      className={cn('size-7 shrink-0 object-contain', className)}
+    />
   )
 }
 

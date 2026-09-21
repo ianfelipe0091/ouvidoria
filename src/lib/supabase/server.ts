@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 
@@ -9,8 +10,13 @@ import { supabasePublishableKey, supabaseUrl } from './env'
  *
  * Precisa ser criado a cada requisição: o store de cookies do Next.js é
  * específico da requisição em curso e não pode ser compartilhado entre elas.
+ *
+ * `cache()` do React reaproveita a instância dentro da MESMA requisição. Layout
+ * e página pediam um cliente cada um e abriam conexões separadas; agora
+ * compartilham a mesma, sem vazar entre requisições — o escopo do cache é a
+ * requisição em curso.
  */
-export async function createClient() {
+export const createClient = cache(async function createClient() {
   const cookieStore = await cookies()
 
   return createServerClient<Database>(supabaseUrl(), supabasePublishableKey(), {
@@ -31,4 +37,4 @@ export async function createClient() {
       },
     },
   })
-}
+})

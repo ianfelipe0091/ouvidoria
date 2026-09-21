@@ -1,8 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import Image, { type StaticImageData } from 'next/image'
 
-export type Reason = { label: string; head: string; desc: string; short: string; img: string }
+export type Reason = {
+  label: string; head: string; desc: string; short: string; img: StaticImageData
+}
 
 /**
  * "Porque ter uma plataforma de Ouvidoria" — seção escura com stepper 01–07.
@@ -70,10 +73,11 @@ export function Reasons({ reasons }: { reasons: Reason[] }) {
           </div>
 
           <div className="relative overflow-hidden rounded-2xl">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={r.img}
               alt=""
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              placeholder="blur"
               className="h-full max-h-[340px] w-full object-cover"
             />
             <span className="absolute right-5 bottom-3 text-6xl font-extrabold text-white/85 drop-shadow">

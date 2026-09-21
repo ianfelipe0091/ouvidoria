@@ -12,13 +12,31 @@ import { PanelNav, type NavItem } from './nav'
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   const { profile, supabase } = await requireProfile()
 
-  const { data: company } = profile.company_id
-    ? await supabase
-        .from('companies')
-        .select('legal_name, trade_name, onboarded_at')
-        .eq('id', profile.company_id)
-        .maybeSingle()
-    : { data: null }
+  // As três consultas do cabeçalho não dependem umas das outras. Em série elas
+  // somavam três idas ao banco antes de qualquer pixel; juntas custam uma.
+  const companyId = profile.company_id
+  const [company, subscription, billing, pathname] = await Promise.all([
+    companyId
+      ? supabase
+          .from('companies')
+          .select('legal_name, trade_name, onboarded_at')
+          .eq('id', companyId)
+          .maybeSingle()
+          .then((r) => r.data)
+      : null,
+    companyId
+      ? supabase
+          .from('subscriptions')
+          .select('status, trial_ends_at, plans(name)')
+          .eq('company_id', companyId)
+          .maybeSingle()
+          .then((r) => r.data)
+      : null,
+    companyId
+      ? supabase.rpc('billing_state', { p_company_id: companyId }).then((r) => r.data)
+      : null,
+    headers().then((h) => h.get('x-pathname') ?? ''),
+  ])
 
   // Empresa recém-criada cai no assistente. Só o administrador pode concluí-lo,
   // então os demais perfis entram direto — ficariam presos numa tela sem ação.
@@ -26,25 +44,12 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     redirect('/onboarding')
   }
 
-  const { data: subscription } = profile.company_id
-    ? await supabase
-        .from('subscriptions')
-        .select('status, trial_ends_at, plans(name)')
-        .eq('company_id', profile.company_id)
-        .maybeSingle()
-    : { data: null }
-
   const isAdmin = ['platform_admin', 'company_admin'].includes(profile.role)
   const trialLeft = subscription?.status === 'trial' ? daysUntil(subscription.trial_ends_at) : null
 
   // Assinatura fora de dia bloqueia o painel. O administrador da plataforma
   // passa: ele precisa enxergar a conta justamente quando ela está irregular.
-  const { data: billing } = profile.company_id
-    ? await supabase.rpc('billing_state', { p_company_id: profile.company_id })
-    : { data: null }
-
   const state = billing as unknown as BillingState | null
-  const pathname = (await headers()).get('x-pathname') ?? ''
   // A tela de pagamento fica fora do bloqueio: é por ela que se sai dele.
   const isBillingRoute = pathname.startsWith('/painel/plano')
 

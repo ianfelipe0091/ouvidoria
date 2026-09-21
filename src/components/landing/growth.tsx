@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import Image, { type StaticImageData } from 'next/image'
 
-export type Audience = { title: string; desc: string; img: string }
+export type Audience = { title: string; desc: string; img: StaticImageData }
 
 /**
  * "Uma Ouvidoria que cresce com você" — carrossel com os públicos-alvo.
@@ -42,8 +43,13 @@ export function Growth({ audiences }: { audiences: Audience[] }) {
                   key={a.title}
                   className="flex w-[calc((100%-3rem)/3)] shrink-0 flex-col overflow-hidden rounded-2xl border border-[var(--lp-border)] bg-white"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={a.img} alt="" className="h-44 w-full object-cover" />
+                  <Image
+                    src={a.img}
+                    alt=""
+                    sizes="(min-width: 768px) 33vw, 100vw"
+                    placeholder="blur"
+                    className="h-44 w-full object-cover"
+                  />
                   <div className="flex flex-col gap-2 p-6">
                     <h3 className="text-base font-bold">{a.title}</h3>
                     <p className="text-sm leading-relaxed text-[var(--lp-muted)]">{a.desc}</p>

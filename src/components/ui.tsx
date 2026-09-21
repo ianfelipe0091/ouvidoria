@@ -64,7 +64,7 @@ export function Card({
 }: { children: ReactNode; className?: string } & ComponentProps<'div'>) {
   return (
     <div
-      className={cn('rounded-xl border border-border bg-surface', className)}
+      className={cn('rounded-2xl border border-border bg-surface', className)}
       {...rest}
     >
       {children}
@@ -89,7 +89,9 @@ export function CardHeader({ title, description, action }: {
 }
 
 const BUTTON_VARIANT = {
-  primary: 'bg-accent text-accent-foreground hover:opacity-90',
+  // Escurecer o azul no hover (em vez de baixar a opacidade) mantém o botão
+  // sólido sobre qualquer fundo — é o comportamento do botão da landing.
+  primary: 'bg-accent text-accent-foreground hover:bg-accent-hover',
   secondary: 'border border-border bg-surface hover:bg-surface-muted',
   ghost: 'hover:bg-surface-muted',
   danger: 'border border-border bg-surface text-danger hover:bg-danger-soft',
@@ -107,7 +109,7 @@ export function Button({
   return (
     <button
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition',
+        'inline-flex items-center justify-center gap-2 rounded-md font-semibold transition',
         'disabled:cursor-not-allowed disabled:opacity-50',
         size === 'sm' ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm',
         BUTTON_VARIANT[variant],
@@ -130,7 +132,7 @@ export function LinkButton({
   return (
     <a
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition',
+        'inline-flex items-center justify-center gap-2 rounded-md font-semibold transition',
         size === 'sm' ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm',
         BUTTON_VARIANT[variant],
         className,
@@ -144,7 +146,7 @@ export function LinkButton({
    Onde o controle deve caber no conteúdo (barras de filtro, seletores inline),
    passe `w-auto!` — no Tailwind v4 o `!` vai no fim e vence o w-full daqui. */
 const CONTROL =
-  'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm ' +
+  'w-full rounded-md border border-border bg-surface px-3 py-2 text-sm ' +
   'placeholder:text-muted disabled:opacity-60'
 
 export function Input({ className, ...rest }: ComponentProps<'input'>) {

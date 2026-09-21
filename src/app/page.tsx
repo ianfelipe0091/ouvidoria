@@ -1,47 +1,78 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import Link from 'next/link'
+
+// Imagens importadas (e não referenciadas por string) para que o Next conheça
+// largura e altura em tempo de build: evita o pulo de layout ao carregar e
+// permite gerar as versões reduzidas e em AVIF/WebP.
+import logo from '@/../public/landing/logo.png'
+import heroWoman from '@/../public/landing/hero-woman.webp'
+import heroChart from '@/../public/landing/hero-chart.png'
+import isolationWoman from '@/../public/landing/isolation-woman.webp'
+import ctaPerson from '@/../public/landing/cta-person.webp'
+import audienceEmpresas from '@/../public/landing/audience-empresas.jpg'
+import audienceFiliais from '@/../public/landing/audience-filiais.jpg'
+import audienceFranqueadoras from '@/../public/landing/audience-franqueadoras.jpg'
+import audienceHospitais from '@/../public/landing/audience-hospitais.jpg'
+import audienceAssociacoes from '@/../public/landing/audience-associacoes.jpg'
+import audienceInstituicoes from '@/../public/landing/audience-instituicoes.jpg'
+import reason01 from '@/../public/landing/reason-01.jpg'
+import reason02 from '@/../public/landing/reason-02.jpg'
+import reason03 from '@/../public/landing/reason-03.jpg'
+import reason04 from '@/../public/landing/reason-04.jpg'
+import reason05 from '@/../public/landing/reason-05.jpg'
+import reason06 from '@/../public/landing/reason-06.jpg'
+import reason07 from '@/../public/landing/reason-07.jpg'
 
 import { Growth, type Audience } from '@/components/landing/growth'
 import { Reasons, type Reason } from '@/components/landing/reasons'
 import { BRAND, formatMoney } from '@/lib/brand'
-import { createClient } from '@/lib/supabase/server'
+import { createPublicClient } from '@/lib/supabase/public'
 
 export const metadata: Metadata = {
   title: `${BRAND.name} — ${BRAND.tagline}`,
   description: BRAND.description,
 }
 
+/**
+ * A landing não tem nada por visitante: é a mesma página para todo mundo. Sem
+ * cookies na consulta de planos, o Next a pré-renderiza e a serve do cache,
+ * revalidando de hora em hora — é a diferença entre servir um HTML pronto e
+ * montar a página (com ida ao banco) a cada visita.
+ */
+export const revalidate = 3600
+
 // Públicos-alvo do carrossel "cresce com você". Texto e imagens fiéis à referência.
 const AUDIENCES: Audience[] = [
   {
     title: 'Empresas',
     desc: 'Que querem fortalecer a governança, o compliance e a transparência nas relações com colaboradores, clientes e demais públicos.',
-    img: '/landing/audience-empresas.jpg',
+    img: audienceEmpresas,
   },
   {
     title: 'Empresas com várias filiais',
     desc: 'Que precisam centralizar as manifestações, ter mais controle sobre as unidades e acompanhar de forma organizada as demandas recebidas.',
-    img: '/landing/audience-filiais.jpg',
+    img: audienceFiliais,
   },
   {
     title: 'Franqueadoras',
     desc: 'Que querem ampliar a transparência da rede, acompanhar manifestações por unidade e fortalecer a relação com franqueados e colaboradores.',
-    img: '/landing/audience-franqueadoras.jpg',
+    img: audienceFranqueadoras,
   },
   {
     title: 'Hospitais e laboratórios',
     desc: 'Que precisam ouvir pacientes, acompanhantes e colaboradores, aprimorando a experiência e identificando oportunidades de melhoria.',
-    img: '/landing/audience-hospitais.jpg',
+    img: audienceHospitais,
   },
   {
     title: 'Associações',
     desc: 'Que desejam fortalecer o relacionamento com associados, ampliar a transparência e criar um canal estruturado de escuta e participação.',
-    img: '/landing/audience-associacoes.jpg',
+    img: audienceAssociacoes,
   },
   {
     title: 'Instituições e organizações',
     desc: 'Que buscam um canal seguro e organizado para receber manifestações, promover a transparência e transformar a escuta em melhorias.',
-    img: '/landing/audience-instituicoes.jpg',
+    img: audienceInstituicoes,
   },
 ]
 
@@ -52,56 +83,56 @@ const REASONS: Reason[] = [
     short: 'Evite conflitos antes que eles cresçam',
     head: 'Evite conflitos antes que eles cresçam',
     desc: 'A Ouvidoria ajuda a identificar e solucionar problemas antes que se transformem em processos judiciais ou crises.',
-    img: '/landing/reason-01.jpg',
+    img: reason01,
   },
   {
     label: '02',
     short: 'Transforme reclamações em oportunidades',
     head: 'Transforme reclamações em oportunidades',
     desc: 'Cada manifestação pode revelar uma falha, um risco ou uma oportunidade de melhorar a experiência.',
-    img: '/landing/reason-02.jpg',
+    img: reason02,
   },
   {
     label: '03',
     short: 'Escute quem faz parte da sua organização',
     head: 'Escute quem faz parte da sua organização',
     desc: 'Um canal estruturado demonstra abertura ao diálogo e fortalece a confiança dos seus públicos.',
-    img: '/landing/reason-03.jpg',
+    img: reason03,
   },
   {
     label: '04',
     short: 'Tenha dados para tomar decisões',
     head: 'Tenha dados para tomar decisões',
     desc: 'Dashboards e indicadores transformam manifestações em informações estratégicas para a gestão.',
-    img: '/landing/reason-04.jpg',
+    img: reason04,
   },
   {
     label: '05',
     short: 'Antecipe riscos',
     head: 'Antecipe riscos',
     desc: 'A análise das demandas permite identificar padrões, recorrências e situações que exigem atenção.',
-    img: '/landing/reason-05.jpg',
+    img: reason05,
   },
   {
     label: '06',
     short: 'Fortaleça sua reputação',
     head: 'Fortaleça sua reputação',
     desc: 'Organizações que ouvem e dão respostas demonstram compromisso com transparência, responsabilidade e melhoria contínua.',
-    img: '/landing/reason-06.jpg',
+    img: reason06,
   },
   {
     label: '07',
     short: 'Eleve o nível da sua governança',
     head: 'Eleve o nível da sua governança',
     desc: 'Uma Ouvidoria estruturada cria um importante mecanismo de escuta, acompanhamento e prestação de contas.',
-    img: '/landing/reason-07.jpg',
+    img: reason07,
   },
 ]
 
 export default async function LandingPage() {
   // Os planos vêm do banco, não de uma lista no código: é a mesma tabela que
   // define os limites cobrados, então a página de preços não pode divergir.
-  const supabase = await createClient()
+  const supabase = createPublicClient()
   const { data } = await supabase
     .from('plans')
     .select('id, slug, name, description, monthly_price, max_branches, max_users, trial_days, features')
@@ -140,8 +171,7 @@ function LandingHeader() {
     <header className="sticky top-0 z-30 border-b border-[var(--lp-border)] bg-white/90 backdrop-blur">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-3.5">
         <Link href="/" aria-label={BRAND.name} className="flex items-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/landing/logo.png" alt={BRAND.name} className="h-8 w-auto" />
+          <Image src={logo} alt={BRAND.name} priority className="h-8 w-auto" />
         </Link>
         <nav className="flex items-center gap-1 text-sm md:gap-2">
           <Link
@@ -216,18 +246,20 @@ function HeroArt() {
       {/* Blob suave atrás da pessoa */}
       <div className="absolute inset-0 translate-x-6 translate-y-6 rounded-[40%_60%_60%_40%/50%_50%_50%_50%] bg-[var(--lp-primary)]/10" />
 
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/landing/hero-woman.webp"
+      <Image
+        src={heroWoman}
         alt="Profissional usando a plataforma"
+        priority
+        sizes="(min-width: 1024px) 512px, 100vw"
         className="relative z-10 w-full"
       />
 
       {/* Donut decorativo no canto superior */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/landing/hero-chart.png"
+      <Image
+        src={heroChart}
         alt=""
+        priority
+        sizes="128px"
         className="absolute -right-2 top-6 z-20 w-28 md:w-32"
       />
 
@@ -347,10 +379,11 @@ function Isolation() {
       <div className="mx-auto grid w-full max-w-6xl items-center gap-12 px-6 py-16 md:py-20 lg:grid-cols-2">
         <div className="relative mx-auto w-full max-w-md">
           <div className="absolute inset-0 translate-x-4 translate-y-4 rounded-3xl bg-[var(--lp-primary)]/10" />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/landing/isolation-woman.webp"
+          <Image
+            src={isolationWoman}
             alt="Profissional consultando manifestações"
+            sizes="(min-width: 1024px) 448px, 100vw"
+            placeholder="blur"
             className="relative z-10 w-full rounded-3xl object-cover"
           />
           {pills.map((p) => (
@@ -494,8 +527,13 @@ function FinalCta() {
       </span>
       <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-6 py-16 md:py-20 lg:grid-cols-[0.8fr_1fr]">
         <div className="relative mx-auto w-full max-w-xs">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/landing/cta-person.webp" alt="" className="relative z-10 w-full" />
+          <Image
+            src={ctaPerson}
+            alt=""
+            sizes="(min-width: 1024px) 320px, 100vw"
+            placeholder="blur"
+            className="relative z-10 w-full"
+          />
         </div>
         <div className="flex flex-col items-start gap-5">
           <h2 className="text-2xl font-extrabold tracking-tight md:text-4xl">
@@ -523,8 +561,7 @@ function LandingFooter() {
   return (
     <footer className="border-t border-[var(--lp-border)] bg-white">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-6 py-8 md:flex-row md:items-center md:justify-between">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/landing/logo.png" alt={BRAND.name} className="h-7 w-auto" />
+        <Image src={logo} alt={BRAND.name} className="h-7 w-auto" />
         <p className="max-w-md text-xs leading-relaxed text-[var(--lp-muted)]">
           É cliente e procura o canal de uma empresa? O endereço tem o formato{' '}
           <code className="rounded bg-[var(--lp-soft)] px-1 py-0.5 font-mono">/ouvidoria/empresa</code>.

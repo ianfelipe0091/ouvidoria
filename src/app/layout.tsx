@@ -1,22 +1,21 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Poppins } from "next/font/google";
+import { Poppins } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-// Poppins é a fonte da landing comercial (site público). O painel segue em Geist.
+/**
+ * Poppins é a fonte de todo o produto — site público e painel.
+ *
+ * Antes o painel usava Geist e a landing, Poppins: duas famílias baixadas na
+ * mesma sessão e duas linguagens visuais no mesmo produto. Unificar corta um
+ * download e faz o painel parecer continuação do site, não outro sistema.
+ * Para monoespaçado (protocolos, CNPJ) a pilha do sistema resolve sem baixar
+ * nada.
+ */
 const poppins = Poppins({
   variable: "--font-poppins",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -26,10 +25,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="pt-BR"
-      className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable} h-full antialiased`}
-    >
+    <html lang="pt-BR" className={`${poppins.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
