@@ -190,3 +190,29 @@ O usuário do Auth correspondente sai por
   em `payment_method_types`.
 - **Backups.** Confirme a política de backup no plano do Supabase; o plano
   gratuito tem retenção limitada.
+
+## Região: a aplicação roda ao lado do banco
+
+O banco Supabase está em `sa-east-1` (São Paulo), e o `vercel.json` fixa as
+funções em `gru1` (São Paulo) por causa disso. Não é preferência: cada tela do
+painel faz várias consultas, e com a aplicação em outra região cada uma delas
+atravessa o oceano. Com as funções em `iad1` (Virgínia), uma ida ao banco
+custava mais de 100 ms; em `gru1`, cerca de 30 ms — e o painel sente isso
+multiplicado por consulta.
+
+Se um dia o projeto Supabase mudar de região, a região daqui muda junto. As
+duas andam em par.
+
+Para conferir onde uma requisição executou, olhe o cabeçalho `x-vercel-id`:
+
+```
+x-vercel-id: gru1::gru1::xxxxx
+             ^^^^  ^^^^
+             borda  função
+```
+
+A primeira parte é a borda que recebeu a requisição — ela varia com a
+localização de quem acessa, e vê-la como `iad1` só significa que o teste partiu
+dos Estados Unidos. A segunda é onde a função rodou, e precisa ser `gru1`.
+`/api/health` também devolve `latencyMs`, medido pelo próprio servidor: é a
+forma mais direta de confirmar que a aplicação está perto do banco.
