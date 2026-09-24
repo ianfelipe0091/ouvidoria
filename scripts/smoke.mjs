@@ -60,7 +60,7 @@ context.on('request', (req) => {
 try {
   console.log('\nCanal público')
 
-  await page.goto(`${BASE}/ouvidoria/${SLUG}`, { waitUntil: 'networkidle' })
+  await page.goto(`${BASE}/${SLUG}`, { waitUntil: 'networkidle' })
   check('canal carrega', await page.getByRole('heading', { level: 1 }).isVisible())
 
   await page.getByRole('link', { name: 'Registrar' }).click()
@@ -110,7 +110,7 @@ try {
 
   console.log('\nConsulta pública')
 
-  await page.goto(`${BASE}/ouvidoria/${SLUG}/consultar`, { waitUntil: 'networkidle' })
+  await page.goto(`${BASE}/${SLUG}/consultar`, { waitUntil: 'networkidle' })
   await page.getByLabel('Protocolo').fill(protocolo)
   await page.getByLabel('Código de acompanhamento').fill('AAAA-BBBB-CCCC-DDDD')
   await page.getByRole('button', { name: 'Consultar' }).click()
@@ -183,7 +183,7 @@ try {
   console.log('\nVolta ao canal público')
 
   await context.clearCookies()
-  await page.goto(`${BASE}/ouvidoria/${SLUG}/consultar`, { waitUntil: 'networkidle' })
+  await page.goto(`${BASE}/${SLUG}/consultar`, { waitUntil: 'networkidle' })
   await page.getByLabel('Protocolo').fill(protocolo)
   await page.getByLabel('Código de acompanhamento').fill(codigo)
   await page.getByRole('button', { name: 'Consultar' }).click()
@@ -194,7 +194,7 @@ try {
 
   console.log('\nResponsividade')
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto(`${BASE}/ouvidoria/${SLUG}`, { waitUntil: 'networkidle' })
+  await page.goto(`${BASE}/${SLUG}`, { waitUntil: 'networkidle' })
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth > window.innerWidth + 1,
   )

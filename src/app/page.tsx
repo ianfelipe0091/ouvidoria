@@ -511,7 +511,7 @@ export default async function LandingPage() {
           <Brand />
           <p>
             {'É cliente e procura o canal de uma empresa? O endereço tem o formato '}
-            <code className="text-foreground">/ouvidoria/empresa</code>.
+            <code className="text-foreground">/empresa</code>.
           </p>
         </div>
       </footer>

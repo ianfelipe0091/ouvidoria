@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { Card, LinkButton } from '@/components/ui'
 import { getChannel } from '@/lib/channel'
 
-export default async function ChannelHome(props: PageProps<'/ouvidoria/[slug]'>) {
+export default async function ChannelHome(props: PageProps<'/[slug]'>) {
   const { slug } = await props.params
   const channel = await getChannel(slug)
 
@@ -26,7 +26,7 @@ export default async function ChannelHome(props: PageProps<'/ouvidoria/[slug]'>)
             Conte o que aconteceu. Ao final você recebe um protocolo e um código
             para acompanhar o andamento.
           </p>
-          <LinkButton href={`/ouvidoria/${slug}/registrar`}>Registrar</LinkButton>
+          <LinkButton href={`/${slug}/registrar`}>Registrar</LinkButton>
         </Card>
 
         <Card className="flex flex-col gap-3 p-5">
@@ -35,7 +35,7 @@ export default async function ChannelHome(props: PageProps<'/ouvidoria/[slug]'>)
             Já registrou? Informe o protocolo e o código de acompanhamento para
             ver o andamento e conversar com a ouvidoria.
           </p>
-          <LinkButton href={`/ouvidoria/${slug}/consultar`} variant="secondary">
+          <LinkButton href={`/${slug}/consultar`} variant="secondary">
             Consultar
           </LinkButton>
         </Card>

@@ -1,6 +1,6 @@
 import { getChannel } from '@/lib/channel'
 
-export default async function PrivacyPage(props: PageProps<'/ouvidoria/[slug]/privacidade'>) {
+export default async function PrivacyPage(props: PageProps<'/[slug]/privacidade'>) {
   const { slug } = await props.params
   const channel = await getChannel(slug)
 

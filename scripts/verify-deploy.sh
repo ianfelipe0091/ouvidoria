@@ -52,14 +52,14 @@ echo "Conectividade"
 contains "alcança o Supabase a partir do servidor" "$(fetch "$BASE/api/health")" '"ok":true'
 
 echo; echo "Canal público"
-CANAL=$(fetch "$BASE/ouvidoria/$SLUG")
+CANAL=$(fetch "$BASE/$SLUG")
 if [ -z "$CANAL" ]; then bad "canal responde" "sem resposta após 3 tentativas"; else
   ok "canal responde"
   contains "canal carrega dados do banco" "$CANAL" "Registrar manifestação"
 fi
-check "formulário responde" "$(code "$BASE/ouvidoria/$SLUG/registrar")" "200"
-check "consulta responde" "$(code "$BASE/ouvidoria/$SLUG/consultar")" "200"
-check "canal inexistente devolve 404" "$(code "$BASE/ouvidoria/nao-existe-$RANDOM")" "404"
+check "formulário responde" "$(code "$BASE/$SLUG/registrar")" "200"
+check "consulta responde" "$(code "$BASE/$SLUG/consultar")" "200"
+check "canal inexistente devolve 404" "$(code "$BASE/nao-existe-$RANDOM")" "404"
 
 echo; echo "Rotas protegidas"
 check "painel exige sessão" "$(code "$BASE/painel")" "307"

@@ -45,7 +45,7 @@ export default async function OnboardingPage(props: PageProps<'/onboarding'>) {
 
   const host = (await headers()).get('host') ?? 'localhost:3000'
   const protocol = host.startsWith('localhost') || host.startsWith('127.') ? 'http' : 'https'
-  const channelUrl = `${protocol}://${host}/ouvidoria/${company.data.slug}`
+  const channelUrl = `${protocol}://${host}/${company.data.slug}`
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-6 py-10">

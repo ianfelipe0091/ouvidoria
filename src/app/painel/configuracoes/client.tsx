@@ -50,7 +50,7 @@ export function SettingsForm({ company, settings }: Props) {
       <Card>
         <CardHeader
           title="Identidade do canal"
-          description={`Endereço público: /ouvidoria/${company.slug}`}
+          description={`Endereço público: /${company.slug}`}
         />
         <div className="grid gap-4 px-5 py-4 sm:grid-cols-2">
           <Field label="Nome exibido na ouvidoria">

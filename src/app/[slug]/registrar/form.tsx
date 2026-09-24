@@ -365,7 +365,7 @@ export function RegistrationForm({ channel }: { channel: Channel }) {
       <p className="text-xs text-muted">
         Prefere consultar algo já registrado?{' '}
         <Link
-          href={`/ouvidoria/${channel.company.slug}/consultar`}
+          href={`/${channel.company.slug}/consultar`}
           className="underline underline-offset-4"
         >
           Consultar manifestação
@@ -457,7 +457,7 @@ function Receipt({
       </Card>
 
       <Link
-        href={`/ouvidoria/${slug}/consultar`}
+        href={`/${slug}/consultar`}
         className="text-xs underline underline-offset-4"
       >
         Acompanhar esta manifestação

@@ -140,7 +140,7 @@ try {
 
   await page.waitForURL('**/onboarding?etapa=pronto', { timeout: 20000 })
   const pronto = await page.textContent('body')
-  check('última etapa mostra o endereço do canal', pronto.includes(`/ouvidoria/${company.slug}`))
+  check('última etapa mostra o endereço do canal', pronto.includes(`/${company.slug}`))
 
   await page.getByRole('button', { name: 'Ir para o painel' }).click()
   await page.waitForURL('**/painel', { timeout: 20000 })
@@ -200,7 +200,7 @@ try {
 
   console.log('\nCanal público da nova empresa')
   await context.clearCookies()
-  await page.goto(`${BASE}/ouvidoria/${company.slug}`, { waitUntil: 'networkidle' })
+  await page.goto(`${BASE}/${company.slug}`, { waitUntil: 'networkidle' })
   const canal = await page.textContent('body')
   check('canal da nova empresa está no ar', canal.includes(`Ouvidoria ${EMPRESA}`))
   check('canal usa o texto configurado no onboarding',
@@ -244,7 +244,7 @@ try {
   // O canal público segue no ar: manifestações em andamento não podem sumir
   // porque a empresa atrasou o pagamento.
   await context.clearCookies()
-  await page.goto(`${BASE}/ouvidoria/${company.slug}`, { waitUntil: 'networkidle' })
+  await page.goto(`${BASE}/${company.slug}`, { waitUntil: 'networkidle' })
   check('canal público continua recebendo durante o bloqueio',
     (await page.textContent('body')).includes('Registrar'))
 

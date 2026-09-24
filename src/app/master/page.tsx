@@ -114,7 +114,7 @@ export default async function MasterPage() {
                         ) : null}
                       </td>
                       <td className="px-4 py-3 text-xs">
-                        <a href={`/ouvidoria/${company.slug}`} className="underline underline-offset-4">
+                        <a href={`/${company.slug}`} className="underline underline-offset-4">
                           /{company.slug}
                         </a>
                       </td>

@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { BRAND } from '@/lib/brand'
 import { getChannel } from '@/lib/channel'
 
-export async function generateMetadata(props: LayoutProps<'/ouvidoria/[slug]'>) {
+export async function generateMetadata(props: LayoutProps<'/[slug]'>) {
   const { slug } = await props.params
   const channel = await getChannel(slug)
   return {
@@ -12,7 +12,7 @@ export async function generateMetadata(props: LayoutProps<'/ouvidoria/[slug]'>) 
   }
 }
 
-export default async function ChannelLayout(props: LayoutProps<'/ouvidoria/[slug]'>) {
+export default async function ChannelLayout(props: LayoutProps<'/[slug]'>) {
   const { slug } = await props.params
   const channel = await getChannel(slug)
 
@@ -39,7 +39,7 @@ export default async function ChannelLayout(props: LayoutProps<'/ouvidoria/[slug
               className="size-8 rounded object-contain"
             />
           ) : null}
-          <Link href={`/ouvidoria/${slug}`} className="text-sm font-semibold">
+          <Link href={`/${slug}`} className="text-sm font-semibold">
             Ouvidoria
             <span className="text-muted"> | {channel.company.name}</span>
           </Link>
@@ -53,7 +53,7 @@ export default async function ChannelLayout(props: LayoutProps<'/ouvidoria/[slug
           <span>{channel.company.name}</span>
           <div className="flex items-center gap-4">
             {channel.branding.privacy_policy_text ? (
-              <Link href={`/ouvidoria/${slug}/privacidade`} className="underline underline-offset-4">
+              <Link href={`/${slug}/privacidade`} className="underline underline-offset-4">
                 Política de privacidade
               </Link>
             ) : null}

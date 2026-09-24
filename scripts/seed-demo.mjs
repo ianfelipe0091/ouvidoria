@@ -117,7 +117,7 @@ async function main() {
 
   console.log(JSON.stringify({
     slug, email, password,
-    canal: `/ouvidoria/${slug}`,
+    canal: `/${slug}`,
     protocolos: created.map((c) => ({ protocolo: c.protocol, codigo: c.tracking_code })),
   }, null, 2))
 }
