@@ -23,7 +23,7 @@ export const BRAND = {
    * Enquanto for null, o botão "Falar com especialista" aparece mas não leva a
    * lugar nenhum — é aqui que se liga o atendimento.
    */
-  salesWhatsapp: null as string | null,
+  salesWhatsapp: '5561991437672' as string | null,
 } as const
 
 /**
@@ -41,7 +41,20 @@ export function salesWhatsappUrl(planName: string) {
  * conta como "filial ou empresa": o cliente pode usar a mesma estrutura para
  * as unidades de uma rede ou para empresas diferentes de um grupo.
  */
-export function planLimitLines(plan: { max_branches: number | null; max_users: number | null }) {
+export function planLimitLines(plan: {
+  max_branches: number | null
+  max_users: number | null
+  self_service?: boolean
+}) {
+  const users = plan.max_users === null ? 'Usuários ilimitados' : `Até ${plan.max_users} usuários`
+
+  // O plano negociado é ofertado para redes de franquias, não para empresas de
+  // filial única. O número real (max_branches) segue travando o uso no banco;
+  // a vitrine fala em franquias, e não em "até N".
+  if (plan.self_service === false) {
+    return ['Acima de 100 franquias', users]
+  }
+
   const b = plan.max_branches
   return [
     b === null
@@ -49,7 +62,7 @@ export function planLimitLines(plan: { max_branches: number | null; max_users: n
       : b === 1
         ? 'Até 1 filial ou empresa'
         : `Até ${b.toLocaleString('pt-BR')} filiais ou empresas`,
-    plan.max_users === null ? 'Usuários ilimitados' : `Até ${plan.max_users} usuários`,
+    users,
   ]
 }
 
