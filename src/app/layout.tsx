@@ -14,7 +14,10 @@ import "./globals.css";
 const poppins = Poppins({
   variable: "--font-poppins",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  // Os mesmos pesos que a landing de referência carrega. Sem o 800 de
+  // propósito: lá `font-extrabold` cai no 700 disponível, e é esse o traço
+  // dos títulos. Carregar o 800 os deixaria mais grossos que o original.
+  weight: ["200", "300", "400", "500", "600", "700"],
   display: "swap",
 });
 

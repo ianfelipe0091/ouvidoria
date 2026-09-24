@@ -3,13 +3,19 @@ import Image from 'next/image'
 import Link from 'next/link'
 
 // Imagens importadas (e não referenciadas por string) para que o Next conheça
-// largura e altura em tempo de build: evita o pulo de layout ao carregar e
-// permite gerar as versões reduzidas e em AVIF/WebP.
+// largura e altura em tempo de build.
+//
+// Critério de otimização: o que já chega em tamanho de web (logos, gráfico e
+// as fotos JPG de 60–150 KB) vai `unoptimized`, o mesmo arquivo que a
+// referência serve — reprocessar só mudaria pixels nas bordas finas. As três
+// fontes pesadas (duas fotos de 1920 px e o PNG de 2,5 MB do CTA) passam pelo
+// otimizador, que é onde ele economiza de verdade.
 import logo from '@/../public/landing/logo.png'
+import logoMark from '@/../public/landing/logo-o.png'
 import heroWoman from '@/../public/landing/hero-woman.webp'
 import heroChart from '@/../public/landing/hero-chart.png'
 import isolationWoman from '@/../public/landing/isolation-woman.webp'
-import ctaPerson from '@/../public/landing/cta-person.webp'
+import ctaPerson from '@/../public/landing/cta-person.png'
 import audienceEmpresas from '@/../public/landing/audience-empresas.jpg'
 import audienceFiliais from '@/../public/landing/audience-filiais.jpg'
 import audienceFranqueadoras from '@/../public/landing/audience-franqueadoras.jpg'
@@ -25,8 +31,9 @@ import reason06 from '@/../public/landing/reason-06.jpg'
 import reason07 from '@/../public/landing/reason-07.jpg'
 
 import { Growth, type Audience } from '@/components/landing/growth'
+import { Icon, type IconName } from '@/components/landing/icons'
 import { Reasons, type Reason } from '@/components/landing/reasons'
-import { BRAND, formatMoney } from '@/lib/brand'
+import { BRAND } from '@/lib/brand'
 import { createPublicClient } from '@/lib/supabase/public'
 
 export const metadata: Metadata = {
@@ -35,107 +42,154 @@ export const metadata: Metadata = {
 }
 
 /**
- * A landing não tem nada por visitante: é a mesma página para todo mundo. Sem
- * cookies na consulta de planos, o Next a pré-renderiza no build e serve um
- * HTML pronto, em vez de montar a página — com ida ao banco — a cada visita.
+ * A landing é a mesma para todo visitante: sem cookies na consulta de planos,
+ * o Next a pré-renderiza no build e serve HTML pronto.
  *
- * Estática de vez, e não com `revalidate`: com revalidação por tempo, o Next
- * mantinha aberta a conexão do prefetch desta página (o link da marca aparece
- * em todo cabeçalho), e cada uma segurava por 30s um dos poucos slots de
- * conexão que o navegador tem por origem.
- *
- * O preço disso é que mudança no catálogo de planos só aparece no próximo
- * deploy. Cabe: o catálogo vive em migração, não numa tela de edição — o
- * painel da plataforma apenas atribui planos às empresas, não os altera.
+ * Estática de vez, e não com `revalidate`: com revalidação por tempo o Next
+ * mantinha aberta a conexão do prefetch desta página, segurando por 30s um
+ * dos poucos slots de conexão do navegador. Mudança no catálogo de planos só
+ * aparece no próximo deploy — cabe, porque o catálogo vive em migração.
  */
 export const revalidate = false
 
-// Públicos-alvo do carrossel "cresce com você". Texto e imagens fiéis à referência.
+/*
+ * Réplica do design de referência (nossa-ouvidoria-website.lovable.app).
+ * Estrutura, classes e textos seguem o original elemento a elemento; o que
+ * difere é só a origem dos dados (planos do banco) e os links (rotas locais).
+ */
+
+const FEATURES: Array<{ icon: IconName; title: string; text: string }> = [
+  {
+    icon: 'building-2',
+    title: 'Canal próprio da sua marca',
+    text: 'Cada empresa recebe um endereço público com seu nome, logo e cores. O cidadão ou colaborador registra em poucos passos, de forma identificada ou anônima.',
+  },
+  {
+    icon: 'message-square-text',
+    title: 'Do protocolo ao encerramento',
+    text: 'Triagem, encaminhamento por departamento, prazos com alerta de atraso, conversa com o manifestante, anexos e histórico completo de tudo que aconteceu.',
+  },
+  {
+    icon: 'clock-3',
+    title: 'Indicadores que a diretoria pede',
+    text: 'Volume por período, tipo, filial e categoria, tempo médio de resposta e manifestações em atraso — sem montar planilha.',
+  },
+]
+
+const SAFEGUARDS: Array<{ icon: IconName; title: string; text: string }> = [
+  {
+    icon: 'shield-check',
+    title: 'Regras no banco',
+    text: 'Políticas por linha decidem o que cada consulta enxerga, qualquer que seja o caminho de acesso.',
+  },
+  {
+    icon: 'lock-keyhole',
+    title: 'Chaves compostas',
+    text: 'Uma manifestação não pode referenciar filial ou responsável de outra empresa: o banco recusa.',
+  },
+  {
+    icon: 'file-check-corner',
+    title: 'Trilha de auditoria',
+    text: 'Quem alterou, encaminhou, respondeu ou encerrou fica registrado desde o primeiro dia.',
+  },
+]
+
+const TAGS = [
+  { label: 'Reclamação', color: 'bg-category-orange', pos: 'top-8 left-3', delay: '0s' },
+  { label: 'Denúncia', color: 'bg-category-red', pos: 'top-24 right-3', delay: '0.4s' },
+  { label: 'Elogio', color: 'bg-category-green', pos: 'top-1/2 left-3', delay: '0.8s' },
+  { label: 'Dúvida', color: 'bg-category-blue', pos: 'bottom-24 right-3', delay: '1.2s' },
+  { label: 'Crítica', color: 'bg-category-orange', pos: 'bottom-8 left-4', delay: '1.6s' },
+]
+
+const REASONS: Reason[] = [
+  {
+    icon: 'shield-alert',
+    title: 'Evite conflitos antes que eles cresçam',
+    text: 'A Ouvidoria ajuda a identificar e solucionar problemas antes que se transformem em processos judiciais ou crises.',
+    img: reason01,
+  },
+  {
+    icon: 'sparkles',
+    title: 'Transforme reclamações em oportunidades',
+    text: 'Cada manifestação pode revelar uma falha, um risco ou uma oportunidade de melhorar a experiência.',
+    img: reason02,
+  },
+  {
+    icon: 'users',
+    title: 'Escute quem faz parte da sua organização',
+    text: 'Um canal estruturado demonstra abertura ao diálogo e fortalece a confiança dos seus públicos.',
+    img: reason03,
+  },
+  {
+    icon: 'chart-column',
+    title: 'Tenha dados para tomar decisões',
+    text: 'Dashboards e indicadores transformam manifestações em informações estratégicas para a gestão.',
+    img: reason04,
+  },
+  {
+    icon: 'radar',
+    title: 'Antecipe riscos',
+    text: 'A análise das demandas permite identificar padrões, recorrências e situações que exigem atenção.',
+    img: reason05,
+  },
+  {
+    icon: 'award',
+    title: 'Fortaleça sua reputação',
+    text: 'Organizações que ouvem e dão respostas demonstram compromisso com transparência, responsabilidade e melhoria contínua.',
+    img: reason06,
+  },
+  {
+    icon: 'scale',
+    title: 'Eleve o nível da sua governança',
+    text: 'Uma Ouvidoria estruturada cria um importante mecanismo de escuta, acompanhamento e prestação de contas.',
+    img: reason07,
+  },
+]
+
 const AUDIENCES: Audience[] = [
   {
     title: 'Empresas',
-    desc: 'Que querem fortalecer a governança, o compliance e a transparência nas relações com colaboradores, clientes e demais públicos.',
+    text: 'Que querem fortalecer a governança, o compliance e a transparência nas relações com colaboradores, clientes e demais públicos.',
     img: audienceEmpresas,
   },
   {
     title: 'Empresas com várias filiais',
-    desc: 'Que precisam centralizar as manifestações, ter mais controle sobre as unidades e acompanhar de forma organizada as demandas recebidas.',
+    text: 'Que precisam centralizar as manifestações, ter mais controle sobre as unidades e acompanhar de forma organizada as demandas recebidas.',
     img: audienceFiliais,
   },
   {
     title: 'Franqueadoras',
-    desc: 'Que querem ampliar a transparência da rede, acompanhar manifestações por unidade e fortalecer a relação com franqueados e colaboradores.',
+    text: 'Que querem ampliar a transparência da rede, acompanhar manifestações por unidade e fortalecer a relação com franqueados e colaboradores.',
     img: audienceFranqueadoras,
   },
   {
     title: 'Hospitais e laboratórios',
-    desc: 'Que precisam ouvir pacientes, acompanhantes e colaboradores, aprimorando a experiência e identificando oportunidades de melhoria.',
+    text: 'Que precisam ouvir pacientes, acompanhantes e colaboradores, aprimorando a experiência e identificando oportunidades de melhoria.',
     img: audienceHospitais,
   },
   {
     title: 'Associações',
-    desc: 'Que desejam fortalecer o relacionamento com associados, ampliar a transparência e criar um canal estruturado de escuta e participação.',
+    text: 'Que desejam fortalecer o relacionamento com associados, ampliar a transparência e criar um canal estruturado de escuta e participação.',
     img: audienceAssociacoes,
   },
   {
     title: 'Instituições e organizações',
-    desc: 'Que buscam um canal seguro e organizado para receber manifestações, promover a transparência e transformar a escuta em melhorias.',
+    text: 'Que buscam um canal seguro e organizado para receber manifestações, promover a transparência e transformar a escuta em melhorias.',
     img: audienceInstituicoes,
   },
 ]
 
-// Motivos 01–07 da seção escura. Texto fiel à referência.
-const REASONS: Reason[] = [
-  {
-    label: '01',
-    short: 'Evite conflitos antes que eles cresçam',
-    head: 'Evite conflitos antes que eles cresçam',
-    desc: 'A Ouvidoria ajuda a identificar e solucionar problemas antes que se transformem em processos judiciais ou crises.',
-    img: reason01,
-  },
-  {
-    label: '02',
-    short: 'Transforme reclamações em oportunidades',
-    head: 'Transforme reclamações em oportunidades',
-    desc: 'Cada manifestação pode revelar uma falha, um risco ou uma oportunidade de melhorar a experiência.',
-    img: reason02,
-  },
-  {
-    label: '03',
-    short: 'Escute quem faz parte da sua organização',
-    head: 'Escute quem faz parte da sua organização',
-    desc: 'Um canal estruturado demonstra abertura ao diálogo e fortalece a confiança dos seus públicos.',
-    img: reason03,
-  },
-  {
-    label: '04',
-    short: 'Tenha dados para tomar decisões',
-    head: 'Tenha dados para tomar decisões',
-    desc: 'Dashboards e indicadores transformam manifestações em informações estratégicas para a gestão.',
-    img: reason04,
-  },
-  {
-    label: '05',
-    short: 'Antecipe riscos',
-    head: 'Antecipe riscos',
-    desc: 'A análise das demandas permite identificar padrões, recorrências e situações que exigem atenção.',
-    img: reason05,
-  },
-  {
-    label: '06',
-    short: 'Fortaleça sua reputação',
-    head: 'Fortaleça sua reputação',
-    desc: 'Organizações que ouvem e dão respostas demonstram compromisso com transparência, responsabilidade e melhoria contínua.',
-    img: reason06,
-  },
-  {
-    label: '07',
-    short: 'Eleve o nível da sua governança',
-    head: 'Eleve o nível da sua governança',
-    desc: 'Uma Ouvidoria estruturada cria um importante mecanismo de escuta, acompanhamento e prestação de contas.',
-    img: reason07,
-  },
-]
+type Plan = {
+  slug: string
+  name: string
+  description: string | null
+  price: string
+  cents: string
+  trialDays: number
+  features: string[]
+  featured: boolean
+}
 
 export default async function LandingPage() {
   // Os planos vêm do banco, não de uma lista no código: é a mesma tabela que
@@ -143,521 +197,344 @@ export default async function LandingPage() {
   const supabase = createPublicClient()
   const { data } = await supabase
     .from('plans')
-    .select('id, slug, name, description, monthly_price, max_branches, max_users, trial_days, features')
+    .select('slug, name, description, monthly_price, max_branches, max_users, trial_days, features')
     .eq('is_active', true)
     .eq('is_public', true)
     .order('sort_order')
 
-  const plans = (data ?? []).map((p) => ({
-    ...p,
-    features: Array.isArray(p.features) ? (p.features as string[]) : [],
-  }))
+  const plans: Plan[] = (data ?? []).map((p) => {
+    const [price, cents = '00'] = Number(p.monthly_price).toFixed(2).split('.')
+    return {
+      slug: p.slug,
+      name: p.name,
+      description: p.description,
+      price,
+      cents,
+      trialDays: p.trial_days,
+      featured: p.slug === 'professional',
+      features: [
+        p.max_branches === null
+          ? 'Filiais ilimitadas'
+          : `Até ${p.max_branches} ${p.max_branches === 1 ? 'filial' : 'filiais'}`,
+        p.max_users === null ? 'Usuários ilimitados' : `Até ${p.max_users} usuários`,
+        ...(Array.isArray(p.features) ? (p.features as string[]) : []),
+      ],
+    }
+  })
 
   return (
-    <div className="lp flex min-h-full flex-1 flex-col">
-      <LandingHeader />
-
-      <main className="flex-1">
-        <Hero />
-        <Features />
-        <Isolation />
-        <Reasons reasons={REASONS} />
-        <Growth audiences={AUDIENCES} />
-        <Plans plans={plans} />
-        <FinalCta />
-      </main>
-
-      <LandingFooter />
-    </div>
-  )
-}
-
-/* ------------------------------------------------------------------ header */
-
-function LandingHeader() {
-  return (
-    <header className="sticky top-0 z-30 border-b border-[var(--lp-border)] bg-white/90 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-3.5">
-        <Link href="/" aria-label={BRAND.name} className="flex items-center">
-          <Image src={logo} alt={BRAND.name} priority className="h-8 w-auto" />
-        </Link>
-        <nav className="flex items-center gap-1 text-sm md:gap-2">
-          <Link
-            href="/#planos"
-            className="rounded-lg px-3 py-2 font-medium text-[var(--lp-fg)] hover:text-[var(--lp-primary)]"
-          >
-            Planos
-          </Link>
-          <Link
-            href="/entrar"
-            className="rounded-lg px-3 py-2 font-medium text-[var(--lp-fg)] hover:text-[var(--lp-primary)]"
-          >
-            Entrar
-          </Link>
-          <PrimaryLink href="/criar-conta">Criar conta</PrimaryLink>
-        </nav>
-      </div>
-    </header>
-  )
-}
-
-/* -------------------------------------------------------------------- hero */
-
-function Hero() {
-  return (
-    <section className="bg-[var(--lp-hero)]">
-      <div className="mx-auto grid w-full max-w-6xl items-center gap-12 px-6 py-16 md:py-24 lg:grid-cols-2">
-        <div className="flex flex-col items-start gap-6">
-          <span className="rounded-full border border-[var(--lp-primary)]/25 bg-[var(--lp-primary-soft)] px-4 py-1.5 text-sm font-semibold text-[var(--lp-primary)]">
-            Plataforma de Ouvidoria - multiempresa
-          </span>
-          <h1 className="text-4xl font-extrabold leading-[1.05] tracking-tight md:text-6xl">
-            A ouvidoria da sua empresa, pronta para funcionar{' '}
-            <span className="mt-2 inline-block rounded-lg bg-[var(--lp-primary)] px-3 py-0.5 text-white">
-              hoje
-            </span>
-            .
-          </h1>
-          <p className="max-w-xl text-base leading-relaxed text-[var(--lp-muted)] md:text-lg">
-            Receba, trate e responda manifestações num canal próprio da sua empresa.
-            Reclamações, denúncias, sugestões, elogios e solicitações num só lugar, com
-            prazos, indicadores e trilha de auditoria.
-          </p>
-          <div className="mt-1 flex flex-wrap items-center gap-3">
-            <PrimaryLink href="/criar-conta" size="lg">
-              Criar conta grátis
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </PrimaryLink>
+    <main id="top" className="lp min-h-screen overflow-hidden bg-background text-foreground">
+      <header className="sticky top-0 z-50 border-b border-border/80 bg-background/95 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 lg:px-8">
+          <Brand />
+          <nav className="flex items-center gap-3 text-sm" aria-label="Navegação principal">
+            <a
+              href="#planos"
+              className="hidden px-3 py-2 text-muted-foreground transition-colors hover:text-foreground sm:block"
+            >
+              Planos
+            </a>
             <Link
               href="/entrar"
-              className="rounded-md border border-[var(--lp-border)] bg-white px-6 py-3 text-sm font-semibold text-[var(--lp-fg)] transition hover:bg-[var(--lp-soft)]"
+              className="hidden px-3 py-2 text-muted-foreground transition-colors hover:text-foreground sm:block"
             >
               Entrar
             </Link>
-          </div>
-          <p className="text-sm text-[var(--lp-muted)]">
-            Ambiente exclusivo criado na hora. Sem cartão de crédito.
-          </p>
+            <Link
+              href="/criar-conta"
+              className="rounded-md bg-primary px-4 py-2 font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
+            >
+              Criar conta
+            </Link>
+          </nav>
         </div>
+      </header>
 
-        <HeroArt />
-      </div>
-    </section>
-  )
-}
-
-function HeroArt() {
-  return (
-    <div className="relative mx-auto w-full max-w-lg">
-      {/* Blob suave atrás da pessoa */}
-      <div className="absolute inset-0 translate-x-6 translate-y-6 rounded-[40%_60%_60%_40%/50%_50%_50%_50%] bg-[var(--lp-primary)]/10" />
-
-      <Image
-        src={heroWoman}
-        alt="Profissional usando a plataforma"
-        priority
-        sizes="(min-width: 1024px) 512px, 100vw"
-        className="relative z-10 w-full"
-      />
-
-      {/* Donut decorativo no canto superior */}
-      <Image
-        src={heroChart}
-        alt=""
-        priority
-        sizes="128px"
-        className="absolute -right-2 top-6 z-20 w-28 md:w-32"
-      />
-
-      {/* Cartão flutuante do painel */}
-      <div className="absolute -bottom-2 right-0 z-20 w-[70%] max-w-[340px] rounded-xl border border-white/60 bg-[var(--lp-dark)]/85 p-3 text-white shadow-2xl backdrop-blur">
-        <div className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-[#ef4444]" />
-          <span className="size-2 rounded-full bg-[#f59e0b]" />
-          <span className="size-2 rounded-full bg-[#22c55e]" />
-          <span className="ml-2 text-[10px] text-white/60">Painel de manifestações</span>
-        </div>
-        <div className="mt-2 flex items-center justify-between">
-          <span className="text-xs font-semibold">Olá, equipe de Ouvidoria</span>
-          <span className="rounded-full bg-[#22c55e]/20 px-2 py-0.5 text-[9px] font-semibold text-[#4ade80]">
-            12 no prazo
-          </span>
-        </div>
-        <div className="mt-2 grid grid-cols-4 gap-1.5">
-          {[
-            { n: 32, l: 'Reclamação', c: '#ef4444' },
-            { n: 18, l: 'Denúncia', c: '#f59e0b' },
-            { n: 27, l: 'Solicitação', c: '#3b82f6' },
-            { n: 14, l: 'Elogio', c: '#22c55e' },
-          ].map((s) => (
-            <div key={s.l} className="rounded-md bg-white/5 p-1.5">
-              <span className="size-1.5 rounded-full" style={{ background: s.c, display: 'inline-block' }} />
-              <p className="text-sm font-bold leading-tight">{s.n}</p>
-              <p className="text-[8px] text-white/50">{s.l}</p>
+      <section className="border-b border-border bg-hero">
+        <div className="mx-auto grid min-h-[610px] max-w-6xl items-center gap-8 px-5 pb-8 pt-14 lg:grid-cols-[1.02fr_.98fr] lg:px-8 lg:pt-8">
+          <div className="relative z-20 max-w-2xl">
+            <span className="inline-flex rounded-full border border-primary/15 bg-primary-soft px-3 py-1 text-xs font-bold text-primary">
+              Plataforma de Ouvidoria - multiempresa
+            </span>
+            <h1 className="mt-6 max-w-xl text-4xl font-extrabold leading-[1.08] sm:text-5xl lg:text-[3.45rem]">
+              {'A ouvidoria da sua empresa, pronta para funcionar '}
+              <mark className="-my-1 rounded-[6px] bg-primary/80 px-1 py-0 leading-[0.65] text-primary-foreground">
+                hoje
+              </mark>
+              .
+            </h1>
+            <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground">
+              Receba, trate e responda manifestações num canal próprio da sua empresa. Reclamações,
+              denúncias, sugestões, elogios e solicitações num só lugar, com prazos, indicadores e
+              trilha de auditoria.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                href="/criar-conta"
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:-translate-y-0.5"
+              >
+                Criar conta grátis <Icon name="arrow-right" size={16} />
+              </Link>
+              <Link
+                href="/entrar"
+                className="rounded-md border border-border bg-background px-5 py-3 text-sm font-bold transition-colors hover:bg-secondary"
+              >
+                Entrar
+              </Link>
             </div>
+            <p className="mt-4 text-xs text-muted-foreground">
+              Ambiente exclusivo criado na hora. Sem cartão de crédito.
+            </p>
+          </div>
+
+          <div className="relative min-h-[470px] self-end lg:min-h-[540px]">
+            <div className="absolute inset-x-12 bottom-0 h-[76%] rounded-[48%_48%_8%_8%] bg-primary-soft" />
+            <Image
+              src={heroChart}
+              alt="Gráfico de distribuição dos relatos por categoria"
+              priority
+              unoptimized
+              className="absolute right-5 top-14 z-10 size-28 object-contain drop-shadow-lg sm:right-10 sm:top-12 sm:size-32 lg:right-3 lg:top-16 lg:size-36"
+            />
+            <Image
+              src={heroWoman}
+              alt="Profissional usando o canal de ouvidoria em um tablet"
+              priority
+              sizes="560px"
+              quality={90}
+              className="absolute bottom-0 left-1/2 z-20 h-[96%] w-auto max-w-none -translate-x-1/2 object-contain lg:left-[44%]"
+            />
+            <DashboardCard />
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-border bg-background py-16">
+        <div className="mx-auto grid max-w-6xl gap-10 px-5 md:grid-cols-3 lg:px-8">
+          {FEATURES.map((f) => (
+            <article key={f.title}>
+              <div className="mb-5 grid size-11 place-items-center rounded-lg bg-primary-soft text-primary">
+                <Icon name={f.icon} size={21} />
+              </div>
+              <h2 className="text-base font-bold">{f.title}</h2>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">{f.text}</p>
+            </article>
           ))}
         </div>
-        <div className="mt-2 grid grid-cols-3 gap-1.5">
-          <div className="col-span-2 rounded-md bg-white/5 p-2">
-            <p className="mb-1 text-[8px] text-white/50">Manifestações por período</p>
-            <div className="flex h-10 items-end gap-1">
-              {[40, 55, 35, 70, 50, 85, 60].map((h, i) => (
-                <span key={i} className="flex-1 rounded-sm bg-[var(--lp-primary)]" style={{ height: `${h}%` }} />
+      </section>
+
+      <section className="bg-secondary py-20">
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 lg:grid-cols-[.9fr_1.1fr] lg:px-8">
+          <div className="relative mx-auto h-[460px] w-full max-w-[470px]">
+            <div className="absolute inset-x-8 bottom-0 h-[88%] rounded-t-[48%] bg-primary-soft" />
+            {TAGS.map((t) => (
+              <span
+                key={t.label}
+                className={`absolute z-30 flex items-center gap-1.5 rounded-full ${t.color} px-3 py-1.5 text-xs font-bold text-white shadow-lg shadow-black/10 ${t.pos}`}
+                style={{ animation: 'tag-float 3s ease-in-out infinite', animationDelay: t.delay }}
+              >
+                <span className="size-2 rounded-full bg-white/70" />
+                {t.label}
+              </span>
+            ))}
+            <Image
+              src={isolationWoman}
+              alt="Profissional gerenciando manifestações no notebook"
+              sizes="480px"
+              quality={90}
+              className="absolute bottom-0 left-1/2 z-20 h-full w-auto max-w-none -translate-x-1/2 object-contain"
+            />
+          </div>
+          <div>
+            <span className="text-xs font-bold uppercase text-primary">Segurança em cada consulta</span>
+            <h2 className="mt-3 text-3xl font-extrabold sm:text-4xl">
+              Isolamento entre empresas e reclamantes
+            </h2>
+            <p className="mt-5 max-w-2xl leading-7 text-muted-foreground">
+              Cada cliente enxerga apenas os próprios usuários, filiais, manifestações e
+              configurações. A separação é imposta pelo banco de dados, em cada consulta, e não
+              apenas escondida na interface.
+            </p>
+            <div className="mt-9 grid gap-4 sm:grid-cols-3">
+              {SAFEGUARDS.map((s) => (
+                <article key={s.title} className="rounded-lg border border-border bg-background p-5">
+                  <Icon name={s.icon} size={22} className="text-primary" />
+                  <h3 className="mt-4 text-sm font-bold">{s.title}</h3>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">{s.text}</p>
+                </article>
               ))}
             </div>
           </div>
-          <div className="flex flex-col justify-center rounded-md bg-[var(--lp-primary)]/20 p-2">
-            <p className="text-lg font-extrabold leading-none">91%</p>
-            <p className="text-[8px] text-white/60">respondidas no prazo</p>
+        </div>
+      </section>
+
+      <Reasons reasons={REASONS} />
+      <Growth audiences={AUDIENCES} />
+
+      <section id="planos" className="py-24">
+        <div className="mx-auto max-w-6xl px-5 lg:px-8">
+          <div className="max-w-2xl">
+            <span className="text-xs font-bold uppercase text-primary">Escolha com tranquilidade</span>
+            <h2 className="mt-3 text-3xl font-extrabold sm:text-4xl">Planos</h2>
+            <p className="mt-4 text-muted-foreground">
+              Todos começam com período de avaliação. Você troca de plano quando quiser.
+            </p>
+          </div>
+          <div className="mt-12 grid gap-6 lg:grid-cols-3">
+            {plans.map((plan) => (
+              <article
+                key={plan.slug}
+                className={`relative flex flex-col rounded-xl border p-7 ${plan.featured ? 'border-primary bg-primary text-primary-foreground shadow-xl shadow-primary/15' : 'border-border bg-card'}`}
+              >
+                {plan.featured ? (
+                  <span className="absolute right-5 top-5 rounded-full bg-highlight px-3 py-1 text-[10px] font-extrabold uppercase text-highlight-foreground">
+                    Mais contratado
+                  </span>
+                ) : null}
+                <h3 className="text-xl font-bold">{plan.name}</h3>
+                <p
+                  className={`mt-3 min-h-12 text-sm leading-6 ${plan.featured ? 'text-primary-foreground/75' : 'text-muted-foreground'}`}
+                >
+                  {plan.description}
+                </p>
+                <p className="mt-7">
+                  <span className="text-sm">R$ </span>
+                  <strong className="text-4xl">{plan.price}</strong>
+                  <span className={plan.featured ? 'text-primary-foreground/70' : 'text-muted-foreground'}>
+                    {`,${plan.cents}/mês`}
+                  </span>
+                </p>
+                <ul className="my-8 space-y-3 text-sm">
+                  {plan.features.map((feature) => (
+                    <li key={feature} className="flex gap-2">
+                      <Icon
+                        name="check"
+                        size={16}
+                        className={plan.featured ? 'text-highlight' : 'text-success'}
+                      />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href={`/criar-conta?plano=${plan.slug}`}
+                  className={`mt-auto rounded-md px-4 py-3 text-center text-sm font-bold transition-transform hover:-translate-y-0.5 ${plan.featured ? 'bg-background text-foreground' : 'bg-primary text-primary-foreground'}`}
+                >
+                  Testar {plan.trialDays} dias grátis
+                </Link>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="relative overflow-visible bg-foreground text-background">
+        <div className="relative mx-auto max-w-6xl px-5 lg:px-8">
+          <div className="relative flex justify-center lg:absolute lg:inset-y-0 lg:left-0 lg:flex lg:items-end lg:justify-start">
+            <Image
+              src={logoMark}
+              alt=""
+              aria-hidden="true"
+              unoptimized
+              className="absolute left-1/2 top-1/2 z-0 size-[200px] object-contain opacity-30 sm:size-[280px] lg:left-1/2 lg:size-[340px]"
+              style={{ transform: 'translateX(calc(-50% + 100px)) translateY(-50%)' }}
+            />
+            <Image
+              src={ctaPerson}
+              alt="Pessoa usando o canal de ouvidoria no celular"
+              sizes="(min-width: 1024px) 420px, 280px"
+              quality={90}
+              className="relative z-10 h-[280px] w-auto object-contain object-bottom sm:h-[360px] lg:h-full lg:w-auto lg:max-w-none"
+            />
+          </div>
+          <div className="max-w-2xl py-16 lg:ml-auto lg:py-24">
+            <h2 className="text-3xl font-extrabold">
+              Comece com o ambiente da sua empresa em poucos minutos
+            </h2>
+            <p className="mt-4 leading-7 text-background/70">
+              O cadastro cria a empresa, a matriz, os tipos de manifestação e as categorias padrão.
+              Você ajusta o que quiser no assistente de configuração.
+            </p>
+            <Link
+              href="/criar-conta"
+              className="mt-8 inline-flex shrink-0 items-center gap-2 rounded-md bg-highlight px-6 py-3 font-bold text-highlight-foreground transition-transform hover:-translate-y-0.5"
+            >
+              Criar conta grátis <Icon name="arrow-right" size={17} />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t border-border py-7">
+        <div className="mx-auto flex max-w-6xl flex-col justify-between gap-3 px-5 text-xs text-muted-foreground sm:flex-row lg:px-8">
+          <Brand />
+          <p>
+            {'É cliente e procura o canal de uma empresa? O endereço tem o formato '}
+            <code className="text-foreground">/ouvidoria/empresa</code>.
+          </p>
+        </div>
+      </footer>
+    </main>
+  )
+}
+
+function Brand() {
+  return (
+    <a href="#top" className="flex items-center" aria-label="Nossa Ouvidoria, início">
+      <Image src={logo} alt="Nossa Ouvidoria" priority unoptimized className="h-9 w-auto" />
+    </a>
+  )
+}
+
+/** Cartão de vidro sobre a foto do hero, imitando o painel de manifestações. */
+function DashboardCard() {
+  return (
+    <div className="absolute bottom-8 right-4 z-30 w-[82%] max-w-[380px] origin-bottom-right scale-[0.8] overflow-hidden rounded-xl border border-white/40 bg-white/10 shadow-2xl backdrop-blur-xl">
+      <div className="flex h-9 items-center gap-1.5 border-b border-white/20 px-4">
+        <span className="size-2 rounded-full bg-category-red" />
+        <span className="size-2 rounded-full bg-category-orange" />
+        <span className="size-2 rounded-full bg-category-green" />
+        <span className="ml-3 text-[10px] font-semibold text-muted-foreground">Painel de manifestações</span>
+      </div>
+      <div className="p-4">
+        <div className="mb-3 flex items-end justify-between">
+          <div>
+            <p className="text-[9px] uppercase text-muted-foreground">Visão geral</p>
+            <p className="text-sm font-bold">Olá, equipe de Ouvidoria</p>
+          </div>
+          <span className="rounded-full border border-success/30 bg-success/20 px-2 py-1 text-[9px] font-bold text-success">
+            12 no prazo
+          </span>
+        </div>
+        <div className="grid grid-cols-4 gap-2">
+          {[
+            ['Reclamação', '32', 'bg-category-red'],
+            ['Denúncia', '18', 'bg-category-orange'],
+            ['Solicitação', '27', 'bg-category-blue'],
+            ['Elogio', '14', 'bg-category-green'],
+          ].map(([label, value, dot]) => (
+            <div key={label} className="rounded-md border border-white/20 bg-white/10 p-2">
+              <span className={`mb-2 block size-2 rounded-full ${dot}`} />
+              <strong className="block text-base">{value}</strong>
+              <span className="text-[8px] text-muted-foreground">{label}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 grid grid-cols-[1.4fr_1fr] gap-3">
+          <div className="rounded-md border border-white/20 bg-white/10 p-3">
+            <div className="flex h-16 items-end gap-2">
+              {['h-7', 'h-11', 'h-6', 'h-14', 'h-10', 'h-16', 'h-12'].map((h, i) => (
+                <span key={i} className={`flex-1 rounded-t-sm bg-primary/80 ${h}`} />
+              ))}
+            </div>
+            <p className="mt-2 text-[8px] text-muted-foreground">Manifestações por período</p>
+          </div>
+          <div className="grid place-items-center rounded-md border border-white/20 bg-primary/20 p-3 text-center text-primary-foreground backdrop-blur-sm">
+            <strong className="text-2xl">91%</strong>
+            <span className="text-[8px] opacity-80">respondidas no prazo</span>
           </div>
         </div>
       </div>
     </div>
-  )
-}
-
-/* ---------------------------------------------------------------- features */
-
-function Features() {
-  const items = [
-    {
-      icon: <IconBuilding />,
-      title: 'Canal próprio da sua marca',
-      text: 'Cada empresa recebe um endereço público com seu nome, logo e cores. O cidadão ou colaborador registra em poucos passos, de forma identificada ou anônima.',
-    },
-    {
-      icon: <IconChat />,
-      title: 'Do protocolo ao encerramento',
-      text: 'Triagem, encaminhamento por departamento, prazos com alerta de atraso, conversa com o manifestante, anexos e histórico completo de tudo que aconteceu.',
-    },
-    {
-      icon: <IconClock />,
-      title: 'Indicadores que a diretoria pede',
-      text: 'Volume por período, tipo, filial e categoria, tempo médio de resposta e manifestações em atraso — sem montar planilha.',
-    },
-  ]
-  return (
-    <section className="bg-white">
-      <div className="mx-auto grid w-full max-w-6xl gap-10 px-6 py-16 md:grid-cols-3 md:py-20">
-        {items.map((it) => (
-          <div key={it.title} className="flex flex-col gap-3">
-            <span className="grid size-11 place-items-center rounded-xl bg-[var(--lp-primary-soft)] text-[var(--lp-primary)]">
-              {it.icon}
-            </span>
-            <h3 className="text-lg font-bold">{it.title}</h3>
-            <p className="text-sm leading-relaxed text-[var(--lp-muted)]">{it.text}</p>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-/* --------------------------------------------------------------- isolation */
-
-function Isolation() {
-  const cards = [
-    {
-      icon: <IconShield />,
-      title: 'Regras no banco',
-      text: 'Políticas por linha decidem o que cada consulta enxerga, qualquer que seja o caminho de acesso.',
-    },
-    {
-      icon: <IconLock />,
-      title: 'Chaves compostas',
-      text: 'Uma manifestação não pode referenciar filial ou responsável de outra empresa: o banco recusa.',
-    },
-    {
-      icon: <IconDoc />,
-      title: 'Trilha de auditoria',
-      text: 'Quem alterou, encaminhou, respondeu ou encerrou fica registrado desde o primeiro dia.',
-    },
-  ]
-  const pills = [
-    { label: 'Reclamação', c: 'var(--lp-gold)', pos: 'left-2 top-8' },
-    { label: 'Denúncia', c: '#ef4444', pos: 'right-4 top-16' },
-    { label: 'Elogio', c: '#22c55e', pos: 'left-0 top-44' },
-    { label: 'Dúvida', c: 'var(--lp-primary)', pos: 'right-2 top-56' },
-    { label: 'Crítica', c: 'var(--lp-gold)', pos: 'left-8 bottom-6' },
-  ]
-  return (
-    <section className="bg-[var(--lp-soft)]">
-      <div className="mx-auto grid w-full max-w-6xl items-center gap-12 px-6 py-16 md:py-20 lg:grid-cols-2">
-        <div className="relative mx-auto w-full max-w-md">
-          <div className="absolute inset-0 translate-x-4 translate-y-4 rounded-3xl bg-[var(--lp-primary)]/10" />
-          <Image
-            src={isolationWoman}
-            alt="Profissional consultando manifestações"
-            sizes="(min-width: 1024px) 448px, 100vw"
-            placeholder="blur"
-            className="relative z-10 w-full rounded-3xl object-cover"
-          />
-          {pills.map((p) => (
-            <span
-              key={p.label}
-              className={`absolute z-20 rounded-full px-3 py-1 text-xs font-semibold text-white shadow-lg ${p.pos}`}
-              style={{ background: p.c }}
-            >
-              {p.label}
-            </span>
-          ))}
-        </div>
-
-        <div className="flex flex-col gap-6">
-          <p className="text-xs font-semibold tracking-[0.14em] text-[var(--lp-primary)]">
-            SEGURANÇA EM CADA CONSULTA
-          </p>
-          <h2 className="text-2xl font-extrabold tracking-tight md:text-4xl">
-            Isolamento entre empresas e reclamantes
-          </h2>
-          <p className="text-sm leading-relaxed text-[var(--lp-muted)] md:text-base">
-            Cada cliente enxerga apenas os próprios usuários, filiais, manifestações e
-            configurações. A separação é imposta pelo banco de dados, em cada consulta, e
-            não apenas escondida na interface.
-          </p>
-          <div className="grid gap-4 sm:grid-cols-3">
-            {cards.map((c) => (
-              <div
-                key={c.title}
-                className="flex flex-col gap-2 rounded-xl border border-[var(--lp-border)] bg-white p-4"
-              >
-                <span className="text-[var(--lp-primary)]">{c.icon}</span>
-                <h3 className="text-sm font-bold">{c.title}</h3>
-                <p className="text-xs leading-relaxed text-[var(--lp-muted)]">{c.text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-/* ------------------------------------------------------------------- plans */
-
-function Plans({ plans }: { plans: Array<{
-  id: string; slug: string; name: string; description: string | null
-  monthly_price: string | number; max_branches: number | null; max_users: number | null
-  trial_days: number; features: string[]
-}> }) {
-  return (
-    <section id="planos" className="scroll-mt-20 bg-white">
-      <div className="mx-auto w-full max-w-6xl px-6 py-16 md:py-20">
-        <p className="text-xs font-semibold tracking-[0.14em] text-[var(--lp-primary)]">
-          ESCOLHA COM TRANQUILIDADE
-        </p>
-        <h2 className="mt-3 text-2xl font-extrabold tracking-tight md:text-4xl">Planos</h2>
-        <p className="mt-4 max-w-2xl text-sm text-[var(--lp-muted)] md:text-base">
-          Todos começam com período de avaliação. Você troca de plano quando quiser.
-        </p>
-
-        <div className="mt-10 grid gap-6 md:grid-cols-3">
-          {plans.map((plan, index) => {
-            const featured = index === 1
-            const branches =
-              plan.max_branches === null
-                ? 'Filiais ilimitadas'
-                : `Até ${plan.max_branches} ${plan.max_branches === 1 ? 'filial' : 'filiais'}`
-            const users =
-              plan.max_users === null ? 'Usuários ilimitados' : `Até ${plan.max_users} usuários`
-            const features = [branches, users, ...plan.features]
-
-            return (
-              <div
-                key={plan.id}
-                className={[
-                  'relative flex flex-col rounded-2xl border p-6',
-                  featured
-                    ? 'border-[var(--lp-primary)] bg-[var(--lp-primary)] text-white shadow-xl md:-translate-y-3'
-                    : 'border-[var(--lp-border)] bg-white',
-                ].join(' ')}
-              >
-                {featured ? (
-                  <span className="absolute -top-3 right-6 rounded-full bg-[var(--lp-gold)] px-3 py-1 text-[10px] font-bold tracking-wide text-[var(--lp-dark)]">
-                    MAIS CONTRATADO
-                  </span>
-                ) : null}
-
-                <h3 className={`text-lg font-bold ${featured ? 'text-white' : ''}`}>{plan.name}</h3>
-                <p className={`mt-2 text-sm leading-relaxed ${featured ? 'text-white/80' : 'text-[var(--lp-muted)]'}`}>
-                  {plan.description}
-                </p>
-
-                <p className="mt-5 flex items-baseline gap-1">
-                  <span className="text-3xl font-extrabold tracking-tight">
-                    {formatMoney(plan.monthly_price)}
-                  </span>
-                  <span className={`text-sm ${featured ? 'text-white/70' : 'text-[var(--lp-muted)]'}`}>/mês</span>
-                </p>
-
-                <ul className="mt-6 flex flex-1 flex-col gap-2.5 text-sm">
-                  {features.map((f) => (
-                    <li key={f} className="flex items-start gap-2">
-                      <CheckMark featured={featured} />
-                      <span className={featured ? 'text-white/90' : ''}>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Link
-                  href={`/criar-conta?plano=${plan.slug}`}
-                  className={[
-                    'mt-6 rounded-md px-5 py-3 text-center text-sm font-semibold transition',
-                    featured
-                      ? 'bg-white text-[var(--lp-primary)] hover:bg-white/90'
-                      : 'bg-[var(--lp-primary)] text-white hover:bg-[var(--lp-primary-hover)]',
-                  ].join(' ')}
-                >
-                  Testar {plan.trial_days} dias grátis
-                </Link>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-/* --------------------------------------------------------------- final cta */
-
-function FinalCta() {
-  return (
-    <section className="relative overflow-hidden bg-[var(--lp-dark)] text-white">
-      {/* "Q" decorativo de marca-d'água */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute -bottom-24 left-1/4 select-none text-[24rem] font-extrabold leading-none text-white/[0.03]"
-      >
-        Q
-      </span>
-      <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-6 py-16 md:py-20 lg:grid-cols-[0.8fr_1fr]">
-        <div className="relative mx-auto w-full max-w-xs">
-          <Image
-            src={ctaPerson}
-            alt=""
-            sizes="(min-width: 1024px) 320px, 100vw"
-            placeholder="blur"
-            className="relative z-10 w-full"
-          />
-        </div>
-        <div className="flex flex-col items-start gap-5">
-          <h2 className="text-2xl font-extrabold tracking-tight md:text-4xl">
-            Comece com o ambiente da sua empresa em poucos minutos
-          </h2>
-          <p className="max-w-xl text-sm leading-relaxed text-white/70 md:text-base">
-            O cadastro cria a empresa, a matriz, os tipos de manifestação e as categorias
-            padrão. Você ajusta o que quiser no assistente de configuração.
-          </p>
-          <Link
-            href="/criar-conta"
-            className="rounded-md bg-[var(--lp-gold)] px-6 py-3 text-sm font-bold text-[var(--lp-dark)] transition hover:bg-[var(--lp-gold-hover)]"
-          >
-            Criar conta grátis
-          </Link>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-/* ------------------------------------------------------------------ footer */
-
-function LandingFooter() {
-  return (
-    <footer className="border-t border-[var(--lp-border)] bg-white">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-6 py-8 md:flex-row md:items-center md:justify-between">
-        <Image src={logo} alt={BRAND.name} className="h-7 w-auto" />
-        <p className="max-w-md text-xs leading-relaxed text-[var(--lp-muted)]">
-          É cliente e procura o canal de uma empresa? O endereço tem o formato{' '}
-          <code className="rounded bg-[var(--lp-soft)] px-1 py-0.5 font-mono">/ouvidoria/empresa</code>.
-        </p>
-      </div>
-    </footer>
-  )
-}
-
-/* --------------------------------------------------------------- primitives */
-
-function PrimaryLink({
-  href, children, size = 'md',
-}: {
-  href: string
-  children: React.ReactNode
-  size?: 'md' | 'lg'
-}) {
-  return (
-    <Link
-      href={href}
-      className={[
-        'inline-flex items-center justify-center gap-2 rounded-md bg-[var(--lp-primary)] font-semibold text-white transition hover:bg-[var(--lp-primary-hover)]',
-        size === 'lg' ? 'px-6 py-3 text-sm' : 'px-4 py-2 text-sm',
-      ].join(' ')}
-    >
-      {children}
-    </Link>
-  )
-}
-
-function CheckMark({ featured }: { featured?: boolean }) {
-  return (
-    <svg
-      width="16" height="16" viewBox="0 0 24 24" fill="none"
-      className={`mt-0.5 shrink-0 ${featured ? 'text-white' : 'text-[var(--lp-primary)]'}`}
-      aria-hidden="true"
-    >
-      <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-/* icons ---------------------------------------------------------------- */
-
-function IconBuilding() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M3 21h18M6 21V5a1 1 0 011-1h6a1 1 0 011 1v16M14 21V9h3a1 1 0 011 1v11M9 8h2M9 12h2M9 16h2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-function IconChat() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-function IconClock() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M12 7v5l3 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-function IconShield() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-function IconLock() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M8 11V8a4 4 0 018 0v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  )
-}
-function IconDoc() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M7 3h7l5 5v13a0 0 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="M14 3v5h5M9 13h6M9 17h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
   )
 }

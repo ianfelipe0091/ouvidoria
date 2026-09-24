@@ -126,6 +126,24 @@
   --color-sev-atencao-soft: var(--sev-atencao-soft);
   --color-sev-neutro-soft: var(--sev-neutro-soft);
   --color-sev-positivo-soft: var(--sev-positivo-soft);
+  /* Cores da landing. Os valores existem só dentro de `.lp`; fora dela estas
+     utilidades não têm cor — e o painel não as usa. */
+  --color-primary: var(--lp-primary);
+  --color-primary-foreground: var(--lp-primary-foreground);
+  --color-primary-soft: var(--lp-primary-soft);
+  --color-hero: var(--lp-hero);
+  --color-secondary: var(--lp-secondary);
+  --color-muted-foreground: var(--lp-muted-foreground);
+  --color-card: var(--lp-card);
+  --color-info-foreground: var(--lp-info-foreground);
+  --color-success: var(--lp-success);
+  --color-highlight: var(--lp-highlight);
+  --color-highlight-foreground: var(--lp-highlight-foreground);
+  --color-category-red: var(--lp-category-red);
+  --color-category-orange: var(--lp-category-orange);
+  --color-category-blue: var(--lp-category-blue);
+  --color-category-green: var(--lp-category-green);
+
   --font-sans: var(--font-poppins);
   --font-mono: var(--mono-stack);
 }
@@ -145,27 +163,104 @@ body {
 }
 
 /* ===========================================================================
-   Landing comercial (site público) — tokens fiéis ao design de referência.
-   Escopo em .lp para não afetar o tema do painel/canal.
-   Cores em oklch, iguais às do design original.
-   =========================================================================== */
-.lp {
-  --lp-bg: oklch(1 0 0);
-  --lp-fg: oklch(0.19 0.035 264);
-  --lp-primary: oklch(0.53 0.22 263);
-  --lp-primary-hover: oklch(0.48 0.22 263);
-  --lp-muted: oklch(0.49 0.025 260);
-  --lp-border: oklch(0.91 0.012 255);
-  --lp-hero: oklch(0.975 0.012 256);
-  --lp-soft: oklch(0.972 0.006 255);
-  --lp-dark: oklch(0.19 0.035 264);
-  --lp-dark-2: oklch(0.23 0.04 264);
-  --lp-gold: oklch(0.83 0.16 85);
-  --lp-gold-hover: oklch(0.78 0.16 85);
-  --lp-primary-soft: oklch(0.95 0.03 263);
+   Landing (site público) — valores copiados do design de referência
+   (nossa-ouvidoria-website.lovable.app), não aproximados.
 
-  font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
-  color: var(--lp-fg);
-  background: var(--lp-bg);
+   Tudo aqui vive em `.lp`, que é o <main> da landing. Os tokens que têm o mesmo
+   nome dos do painel (--background, --foreground, --border, --info) são
+   redefinidos só dentro dela; os demais existem só aqui.
+
+   Fica em @layer base de propósito: regra sem camada venceria as utilidades
+   do Tailwind independentemente da especificidade, e as classes da página
+   precisam poder sobrescrever estes padrões — como na referência.
+   =========================================================================== */
+@layer base {
+  .lp {
+    --background: oklch(100% 0 0);
+    --foreground: oklch(19% 0.035 264);
+    --border: oklch(91% 0.012 255);
+    --info: oklch(78% 0.12 225);
+
+    --lp-primary: oklch(53% 0.22 263);
+    --lp-primary-foreground: oklch(100% 0 0);
+    --lp-primary-soft: oklch(94% 0.035 263);
+    --lp-hero: oklch(97.5% 0.012 256);
+    --lp-secondary: oklch(97.2% 0.006 255);
+    --lp-muted-foreground: oklch(49% 0.025 260);
+    --lp-card: oklch(100% 0 0);
+    --lp-info-foreground: oklch(19% 0.035 264);
+    --lp-success: oklch(58% 0.16 153);
+    --lp-highlight: oklch(86% 0.18 93);
+    --lp-highlight-foreground: oklch(22% 0.04 85);
+    --lp-category-red: oklch(64% 0.2 25);
+    --lp-category-orange: oklch(76% 0.17 67);
+    --lp-category-blue: oklch(62% 0.17 245);
+    --lp-category-green: oklch(67% 0.17 150);
+
+    /* O texto corrido da referência é Poppins Light (300): é o que dá o ar
+       leve da página. Títulos sem classe de peso ficam em 500. */
+    font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+    font-weight: 300;
+    letter-spacing: 0;
+    background-color: var(--background);
+    color: var(--foreground);
+
+    /* A referência não usa `antialiased`; o <html> do app usa. No macOS isso
+       afinaria todo o texto da landing. */
+    -webkit-font-smoothing: auto;
+    -moz-osx-font-smoothing: auto;
+  }
+
+  .lp,
+  .lp *,
+  .lp ::before,
+  .lp ::after {
+    border-color: var(--border);
+  }
+
+  /* A pilha monoespaçada da referência, não a do painel: com outra fonte o
+     <code> do rodapé muda a altura da linha e desloca a página em 1px. */
+  .lp :is(code, kbd, samp, pre) {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+      "Courier New", monospace;
+  }
+
+  .lp :is(h1, h2, h3, h4, h5, h6) {
+    letter-spacing: -0.01em;
+    font-weight: 500;
+  }
+
+  html:has(.lp) {
+    scroll-behavior: smooth;
+  }
 }
-.lp ::selection { background: color-mix(in oklab, var(--lp-primary) 22%, transparent); }
+
+@media (prefers-reduced-motion: reduce) {
+  html:has(.lp) {
+    scroll-behavior: auto;
+  }
+  .lp *,
+  .lp ::before,
+  .lp ::after {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* O anel de foco do painel (regra global mais acima) não existe na
+   referência; dentro da landing volta o comportamento padrão. */
+.lp :focus-visible {
+  outline: revert-layer;
+  outline-offset: revert-layer;
+  border-radius: revert-layer;
+}
+
+/* Etiquetas que flutuam ao lado da foto na seção de isolamento. */
+@keyframes tag-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}

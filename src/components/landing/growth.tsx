@@ -1,88 +1,110 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Image, { type StaticImageData } from 'next/image'
 
-export type Audience = { title: string; desc: string; img: StaticImageData }
+import { Icon } from './icons'
+
+export type Audience = { title: string; text: string; img: StaticImageData }
+
+/** Cartões por vista em cada faixa de largura — os mesmos cortes do sm/lg do Tailwind. */
+const perViewFor = (width: number) => (width >= 1024 ? 3 : width >= 640 ? 2 : 1)
 
 /**
- * "Uma Ouvidoria que cresce com você" — carrossel com os públicos-alvo.
- * Mostra três cartões por vez; a seta avança um cartão e os pontos indicam
- * a posição. Réplica do design de referência.
+ * "Uma Ouvidoria que cresce com você" — carrossel dos públicos-alvo.
+ *
+ * A largura de cada cartão vem do CSS (w-full / sm:w-1/2 / lg:w-1/3), e não do
+ * JavaScript: assim a primeira pintura, antes da hidratação, já sai certa no
+ * celular. O estado só guarda quantos cabem por vista para calcular o passo,
+ * as setas e os pontos.
  */
 export function Growth({ audiences }: { audiences: Audience[] }) {
-  const perView = 3
-  const maxIndex = Math.max(0, audiences.length - perView)
   const [index, setIndex] = useState(0)
+  const [perView, setPerView] = useState(3)
 
-  const go = (i: number) => setIndex(Math.min(maxIndex, Math.max(0, i)))
+  useEffect(() => {
+    const update = () => setPerView(perViewFor(window.innerWidth))
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+
+  const last = Math.max(0, audiences.length - perView)
+  const current = Math.min(index, last)
+  const offset = (current / perView) * 100
+  const step = (delta: number) => setIndex((i) => Math.max(0, Math.min(last, i + delta)))
 
   return (
-    <section className="bg-[var(--lp-bg)]">
-      <div className="mx-auto w-full max-w-6xl px-6 py-16 md:py-20">
-        <p className="text-xs font-semibold tracking-[0.14em] text-[var(--lp-primary)]">
-          CRESCE COM VOCÊ
-        </p>
-        <h2 className="mt-3 max-w-2xl text-2xl font-extrabold tracking-tight md:text-4xl">
-          Uma Ouvidoria que cresce com você
-        </h2>
-        <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[var(--lp-muted)] md:text-base">
-          Da empresa com uma unidade à operação com mais de 1.000 pontos de atendimento.
-          Nossa plataforma acompanha sua estrutura, centraliza a escuta e transforma
-          manifestações em informação para a gestão.
-        </p>
+    <section className="bg-background py-20">
+      <div className="mx-auto max-w-6xl px-5 lg:px-8">
+        <div className="max-w-2xl">
+          <span className="text-xs font-bold uppercase text-primary">Cresce com você</span>
+          <h2 className="mt-3 text-3xl font-extrabold sm:text-4xl">Uma Ouvidoria que cresce com você</h2>
+          <p className="mt-4 leading-7 text-muted-foreground">
+            Da empresa com uma unidade à operação com mais de 1.000 pontos de atendimento. Nossa
+            plataforma acompanha sua estrutura, centraliza a escuta e transforma manifestações em
+            informação para a gestão.
+          </p>
+        </div>
 
-        <div className="relative mt-10">
+        <div className="relative mt-12">
           <div className="overflow-hidden">
             <div
-              className="flex gap-6 transition-transform duration-500 ease-out"
-              style={{ transform: `translateX(calc(-${index} * (100% + 1.5rem) / ${perView}))` }}
+              className="flex transition-transform duration-500 ease-out"
+              style={{ transform: `translateX(-${offset}%)` }}
             >
               {audiences.map((a) => (
-                <article
-                  key={a.title}
-                  className="flex w-[calc((100%-3rem)/3)] shrink-0 flex-col overflow-hidden rounded-2xl border border-[var(--lp-border)] bg-white"
-                >
-                  <Image
-                    src={a.img}
-                    alt=""
-                    sizes="(min-width: 768px) 33vw, 100vw"
-                    placeholder="blur"
-                    className="h-44 w-full object-cover"
-                  />
-                  <div className="flex flex-col gap-2 p-6">
-                    <h3 className="text-base font-bold">{a.title}</h3>
-                    <p className="text-sm leading-relaxed text-[var(--lp-muted)]">{a.desc}</p>
-                  </div>
-                </article>
+                <div key={a.title} className="w-full shrink-0 px-3 sm:w-1/2 lg:w-1/3">
+                  <article className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-md shadow-black/5 transition-shadow hover:shadow-lg hover:shadow-black/10">
+                    <div className="relative aspect-[16/10] overflow-hidden">
+                      <Image
+                        src={a.img}
+                        alt={a.title}
+                        unoptimized
+                        loading="lazy"
+                        className="size-full object-cover"
+                      />
+                    </div>
+                    <div className="flex flex-1 flex-col p-6">
+                      <h3 className="text-lg font-bold text-foreground">{a.title}</h3>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">{a.text}</p>
+                    </div>
+                  </article>
+                </div>
               ))}
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => go(index + 1)}
-            disabled={index >= maxIndex}
-            aria-label="Próximo"
-            className="absolute -right-3 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-full border border-[var(--lp-border)] bg-white text-[var(--lp-fg)] shadow-md transition hover:bg-[var(--lp-soft)] disabled:opacity-40"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
+          {current > 0 ? (
+            <button
+              type="button"
+              onClick={() => step(-1)}
+              aria-label="Anterior"
+              className="absolute -left-3 top-1/2 z-10 grid size-10 -translate-y-1/2 place-items-center rounded-full border border-border bg-background shadow-md transition-colors hover:bg-secondary lg:-left-5"
+            >
+              <Icon name="chevron-left" size={18} />
+            </button>
+          ) : null}
+          {current < last ? (
+            <button
+              type="button"
+              onClick={() => step(1)}
+              aria-label="Próximo"
+              className="absolute -right-3 top-1/2 z-10 grid size-10 -translate-y-1/2 place-items-center rounded-full border border-border bg-background shadow-md transition-colors hover:bg-secondary lg:-right-5"
+            >
+              <Icon name="chevron-right" size={18} />
+            </button>
+          ) : null}
         </div>
 
-        <div className="mt-8 flex items-center justify-center gap-2">
-          {Array.from({ length: maxIndex + 1 }).map((_, i) => (
+        <div className="mt-8 flex justify-center gap-2">
+          {Array.from({ length: last + 1 }).map((_, i) => (
             <button
               key={i}
               type="button"
-              onClick={() => go(i)}
+              onClick={() => setIndex(i)}
               aria-label={`Ir para o grupo ${i + 1}`}
-              className={[
-                'h-2 rounded-full transition-all',
-                i === index ? 'w-6 bg-[var(--lp-primary)]' : 'w-2 bg-[var(--lp-border)]',
-              ].join(' ')}
+              className={`h-2 rounded-full transition-all ${i === current ? 'w-6 bg-primary' : 'w-2 bg-border hover:bg-muted-foreground/40'}`}
             />
           ))}
         </div>
