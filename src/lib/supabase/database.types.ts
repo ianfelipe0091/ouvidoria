@@ -909,6 +909,7 @@ export type Database = {
           monthly_price: number
           name: string
           provider_price_id: string | null
+          self_service: boolean
           slug: string
           sort_order: number
           trial_days: number
@@ -926,6 +927,7 @@ export type Database = {
           monthly_price?: number
           name: string
           provider_price_id?: string | null
+          self_service?: boolean
           slug: string
           sort_order?: number
           trial_days?: number
@@ -943,6 +945,7 @@ export type Database = {
           monthly_price?: number
           name?: string
           provider_price_id?: string | null
+          self_service?: boolean
           slug?: string
           sort_order?: number
           trial_days?: number

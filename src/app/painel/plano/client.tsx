@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from 'react'
 
-import { Button, FormError } from '@/components/ui'
+import { Button, FormError, LinkButton } from '@/components/ui'
+import { salesWhatsappUrl } from '@/lib/brand'
 import { PlanGrid, type PlanCard } from '@/components/marketing'
 import { changePlan, openBillingPortal } from './actions'
 
@@ -31,6 +32,10 @@ export function PlanChooser({
         action={(plan) =>
           plan.slug === currentSlug ? (
             <Button variant="secondary" disabled>Plano atual</Button>
+          ) : !plan.self_service ? (
+            // Plano negociado não se assina daqui (o banco também recusa):
+            // a conversa com o comercial é o caminho.
+            <SalesButton planName={plan.name} />
           ) : (
             <Button
               variant="secondary"
@@ -61,6 +66,19 @@ export function PlanChooser({
         }
       />
     </div>
+  )
+}
+
+function SalesButton({ planName }: { planName: string }) {
+  const href = salesWhatsappUrl(planName)
+  return href ? (
+    <LinkButton href={href} target="_blank" rel="noopener noreferrer" variant="secondary">
+      Falar com especialista
+    </LinkButton>
+  ) : (
+    <Button variant="secondary" disabled title="Canal de atendimento em configuração">
+      Falar com especialista
+    </Button>
   )
 }
 

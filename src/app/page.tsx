@@ -33,7 +33,7 @@ import reason07 from '@/../public/landing/reason-07.jpg'
 import { Growth, type Audience } from '@/components/landing/growth'
 import { Icon, type IconName } from '@/components/landing/icons'
 import { Reasons, type Reason } from '@/components/landing/reasons'
-import { BRAND } from '@/lib/brand'
+import { BRAND, planLimitLines, salesWhatsappUrl } from '@/lib/brand'
 import { createPublicClient } from '@/lib/supabase/public'
 
 export const metadata: Metadata = {
@@ -189,6 +189,8 @@ type Plan = {
   trialDays: number
   features: string[]
   featured: boolean
+  /** false = plano negociado: sem preço de tabela, contratado com o comercial. */
+  selfService: boolean
 }
 
 export default async function LandingPage() {
@@ -197,7 +199,7 @@ export default async function LandingPage() {
   const supabase = createPublicClient()
   const { data } = await supabase
     .from('plans')
-    .select('slug, name, description, monthly_price, max_branches, max_users, trial_days, features')
+    .select('slug, name, description, monthly_price, max_branches, max_users, trial_days, features, self_service')
     .eq('is_active', true)
     .eq('is_public', true)
     .order('sort_order')
@@ -212,15 +214,18 @@ export default async function LandingPage() {
       cents,
       trialDays: p.trial_days,
       featured: p.slug === 'professional',
+      selfService: p.self_service,
       features: [
-        p.max_branches === null
-          ? 'Filiais ilimitadas'
-          : `Até ${p.max_branches} ${p.max_branches === 1 ? 'filial' : 'filiais'}`,
-        p.max_users === null ? 'Usuários ilimitados' : `Até ${p.max_users} usuários`,
+        ...planLimitLines(p),
         ...(Array.isArray(p.features) ? (p.features as string[]) : []),
       ],
     }
   })
+  // Os de contratação imediata ficam na grade de três cartões, como no design
+  // de referência; o negociado vem numa faixa larga logo abaixo — um quarto
+  // cartão espremeria a grade, e ele não tem preço de tabela para comparar.
+  const tablePlans = plans.filter((p) => p.selfService)
+  const salesPlans = plans.filter((p) => !p.selfService)
 
   return (
     <main id="top" className="lp min-h-screen overflow-hidden bg-background text-foreground">
@@ -381,7 +386,7 @@ export default async function LandingPage() {
             </p>
           </div>
           <div className="mt-12 grid gap-6 lg:grid-cols-3">
-            {plans.map((plan) => (
+            {tablePlans.map((plan) => (
               <article
                 key={plan.slug}
                 className={`relative flex flex-col rounded-xl border p-7 ${plan.featured ? 'border-primary bg-primary text-primary-foreground shadow-xl shadow-primary/15' : 'border-border bg-card'}`}
@@ -425,6 +430,42 @@ export default async function LandingPage() {
               </article>
             ))}
           </div>
+          {salesPlans.map((plan) => {
+            const href = salesWhatsappUrl(plan.name)
+            return (
+              <article
+                key={plan.slug}
+                className="mt-6 grid gap-8 rounded-xl border border-border bg-hero p-7 xl:grid-cols-[1fr_2fr_auto] xl:items-center"
+              >
+                <div>
+                  <h3 className="text-xl font-bold">{plan.name}</h3>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">{plan.description}</p>
+                  <p className="mt-5">
+                    <strong className="text-2xl">Valor personalizado</strong>
+                  </p>
+                </div>
+                <ul className="grid gap-3 text-sm sm:grid-cols-2">
+                  {plan.features.map((feature) => (
+                    <li key={feature} className="flex gap-2">
+                      <Icon name="check" size={16} className="shrink-0 text-success" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                {/* Sem número configurado (BRAND.salesWhatsapp) o botão aparece,
+                    mas sem destino: <a> sem href não navega nem recebe foco. */}
+                <a
+                  href={href ?? undefined}
+                  target={href ? '_blank' : undefined}
+                  rel={href ? 'noopener noreferrer' : undefined}
+                  aria-disabled={href ? undefined : true}
+                  className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-bold whitespace-nowrap text-primary-foreground transition-transform hover:-translate-y-0.5 sm:justify-self-start"
+                >
+                  Falar com especialista <Icon name="message-circle" size={16} />
+                </a>
+              </article>
+            )
+          })}
         </div>
       </section>
 

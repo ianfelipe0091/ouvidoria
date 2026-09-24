@@ -2,7 +2,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 
 import { Badge, LinkButton, cn } from '@/components/ui'
-import { BRAND, formatMoney } from '@/lib/brand'
+import { BRAND, formatMoney, planLimitLines } from '@/lib/brand'
 
 import logoMark from '@/../public/landing/logo-o.png'
 import logoWordmark from '@/../public/landing/logo.png'
@@ -69,6 +69,8 @@ export type PlanCard = {
   monthly_price: string | number
   max_branches: number | null
   max_users: number | null
+  /** false = plano negociado com o comercial: sem preço de tabela. */
+  self_service: boolean
   trial_days: number
   features: string[]
 }
@@ -88,7 +90,7 @@ export function PlanGrid({
   action?: (plan: PlanCard) => React.ReactNode
 }) {
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-2">
       {plans.map((plan, index) => {
         const current = plan.slug === currentSlug
         // O plano do meio é o que a maioria contrata; destacá-lo é honesto e
@@ -116,24 +118,24 @@ export function PlanGrid({
               <p className="text-xs leading-relaxed text-muted">{plan.description}</p>
             </div>
 
-            <p className="flex items-baseline gap-1">
-              <span className="text-2xl font-semibold tracking-tight">
-                {formatMoney(plan.monthly_price)}
-              </span>
-              <span className="text-xs text-muted">/mês</span>
-            </p>
+            {plan.self_service ? (
+              <p className="flex items-baseline gap-1">
+                <span className="text-2xl font-semibold tracking-tight">
+                  {formatMoney(plan.monthly_price)}
+                </span>
+                <span className="text-xs text-muted">/mês</span>
+              </p>
+            ) : (
+              <p className="text-2xl font-semibold tracking-tight">Valor personalizado</p>
+            )}
 
             <ul className="flex flex-1 flex-col gap-1.5 text-xs">
-              <li className="flex gap-2">
-                <Check />
-                {plan.max_branches === null
-                  ? 'Filiais ilimitadas'
-                  : `Até ${plan.max_branches} ${plan.max_branches === 1 ? 'filial' : 'filiais'}`}
-              </li>
-              <li className="flex gap-2">
-                <Check />
-                {plan.max_users === null ? 'Usuários ilimitados' : `Até ${plan.max_users} usuários`}
-              </li>
+              {planLimitLines(plan).map((line) => (
+                <li key={line} className="flex gap-2">
+                  <Check />
+                  {line}
+                </li>
+              ))}
               {plan.features.map((feature) => (
                 <li key={feature} className="flex gap-2">
                   <Check />

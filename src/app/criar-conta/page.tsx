@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 
 import { Badge } from '@/components/ui'
 import { SiteFooter, SiteHeader } from '@/components/marketing'
-import { BRAND, formatMoney } from '@/lib/brand'
+import { BRAND, formatMoney, planLimitLines } from '@/lib/brand'
 import { currentProfile } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { SignUpForm } from './form'
@@ -24,6 +24,9 @@ export default async function SignUpPage(props: PageProps<'/criar-conta'>) {
     .select('slug, name, monthly_price, trial_days, max_branches, max_users')
     .eq('is_active', true)
     .eq('is_public', true)
+    // Plano negociado não se contrata pelo cadastro; ?plano= com ele cai no
+    // primeiro plano de tabela (o banco recusaria de qualquer forma).
+    .eq('self_service', true)
     .order('sort_order')
 
   const plan = plans?.find((p) => p.slug === requested) ?? plans?.[0]
@@ -49,7 +52,7 @@ export default async function SignUpPage(props: PageProps<'/criar-conta'>) {
               </div>
               <p className="text-xs text-muted">
                 {formatMoney(plan.monthly_price)}/mês após a avaliação ·{' '}
-                {plan.max_branches === null ? 'filiais ilimitadas' : `até ${plan.max_branches} filiais`}
+                {planLimitLines(plan)[0].toLowerCase()}
               </p>
               <Link href="/#planos" className="text-xs underline underline-offset-4">
                 Ver todos os planos

@@ -18,5 +18,18 @@ import { supabasePublishableKey, supabaseUrl } from './env'
 export function createPublicClient() {
   return createSupabaseClient<Database>(supabaseUrl(), supabasePublishableKey(), {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { 'x-build-id': BUILD_ID } },
   })
 }
+
+/**
+ * Identifica o build. Vai como cabeçalho em toda consulta deste cliente para
+ * mudar a chave do cache de dados do Next a cada deploy.
+ *
+ * Sem isso, a landing (estática, `revalidate = false`) guardava a resposta do
+ * banco no Data Cache indefinidamente — e a Vercel restaura esse cache entre
+ * builds. Um deploy depois de mudar os planos continuava servindo os antigos.
+ * Com a chave por build, cada deploy consulta o banco uma vez e congela o
+ * resultado, que é o comportamento pretendido.
+ */
+const BUILD_ID = process.env.VERCEL_DEPLOYMENT_ID ?? process.env.VERCEL_GIT_COMMIT_SHA ?? String(Date.now())

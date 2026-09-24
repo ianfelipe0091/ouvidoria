@@ -18,7 +18,40 @@ export const BRAND = {
     'Reclamações, denúncias, sugestões, elogios e solicitações num só lugar, ' +
     'com prazos, indicadores e trilha de auditoria.',
   supportEmail: 'contato@exemplo.com.br',
+  /**
+   * WhatsApp do comercial, só dígitos com DDI e DDD (ex.: '5511999998888').
+   * Enquanto for null, o botão "Falar com especialista" aparece mas não leva a
+   * lugar nenhum — é aqui que se liga o atendimento.
+   */
+  salesWhatsapp: null as string | null,
 } as const
+
+/**
+ * Link de conversa com o comercial sobre um plano negociado, com a mensagem
+ * inicial já preenchida. Null enquanto o número não estiver configurado.
+ */
+export function salesWhatsappUrl(planName: string) {
+  if (!BRAND.salesWhatsapp) return null
+  const text = `Olá! Quero conhecer o plano ${planName} da Nossa Ouvidoria.`
+  return `https://wa.me/${BRAND.salesWhatsapp}?text=${encodeURIComponent(text)}`
+}
+
+/**
+ * Linhas de limite que abrem a lista de recursos de cada plano. Uma filial
+ * conta como "filial ou empresa": o cliente pode usar a mesma estrutura para
+ * as unidades de uma rede ou para empresas diferentes de um grupo.
+ */
+export function planLimitLines(plan: { max_branches: number | null; max_users: number | null }) {
+  const b = plan.max_branches
+  return [
+    b === null
+      ? 'Filiais ou empresas ilimitadas'
+      : b === 1
+        ? 'Até 1 filial ou empresa'
+        : `Até ${b.toLocaleString('pt-BR')} filiais ou empresas`,
+    plan.max_users === null ? 'Usuários ilimitados' : `Até ${plan.max_users} usuários`,
+  ]
+}
 
 /** Rótulos dos status de assinatura. */
 export const SUBSCRIPTION_LABEL = {

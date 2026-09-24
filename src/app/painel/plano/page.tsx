@@ -44,7 +44,7 @@ export default async function PlanPage(props: PageProps<'/painel/plano'>) {
       .maybeSingle(),
     supabase
       .from('plans')
-      .select('id, slug, name, description, monthly_price, max_branches, max_users, trial_days, features')
+      .select('id, slug, name, description, monthly_price, max_branches, max_users, trial_days, features, self_service')
       .eq('is_active', true)
       .eq('is_public', true)
       .order('sort_order'),
@@ -114,7 +114,10 @@ export default async function PlanPage(props: PageProps<'/painel/plano'>) {
           <p className="text-xs text-muted">Plano atual</p>
           <p className="mt-1 text-lg font-semibold">{plan.name}</p>
           <p className="mt-0.5 text-xs text-muted">
-            {formatMoney(subscription.data.contracted_price)}/mês
+            {/* Plano negociado sem valor registrado: "R$ 0,00" pareceria gratuito. */}
+            {!plan.self_service && Number(subscription.data.contracted_price) === 0
+              ? 'Valor personalizado'
+              : `${formatMoney(subscription.data.contracted_price)}/mês`}
           </p>
         </Card>
 

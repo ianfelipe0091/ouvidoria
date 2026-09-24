@@ -45,6 +45,9 @@ async function main() {
     p_admin_user_id: user.user.id,
     p_admin_name: 'Ana Ribeiro',
     p_admin_email: email,
+    // A demonstração tem três unidades (matriz + duas filiais) para exercitar
+    // o recorte por loja; o Basic permite uma só, então ela nasce no Professional.
+    p_plan_slug: 'professional',
   })
   if (error) throw new Error(`empresa: ${error.message}`)
 
@@ -57,10 +60,11 @@ async function main() {
   }).eq('company_id', companyId)
 
   // Filiais, para exercitar o recorte por unidade.
-  const { data: branches } = await admin.from('branches').insert([
+  const { data: branches, error: branchError } = await admin.from('branches').insert([
     { company_id: companyId, name: 'Filial São Paulo', address_city: 'São Paulo', address_state: 'SP' },
     { company_id: companyId, name: 'Filial Recife', address_city: 'Recife', address_state: 'PE' },
   ]).select('id, name')
+  if (branchError) throw new Error(`filiais: ${branchError.message}`)
 
   await admin.from('departments').insert([
     { company_id: companyId, name: 'Recursos Humanos' },
