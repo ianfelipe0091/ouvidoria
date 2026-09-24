@@ -1,0 +1,21 @@
+<!--
+  Template de recuperação de senha (assunto: "Redefinição de senha - Nossa Ouvidoria").
+  AINDA NÃO ESTÁ ATIVO: no plano gratuito com o e-mail padrão do Supabase não é
+  possível personalizar template. Ao configurar SMTP próprio (Resend, SES, etc.),
+  cole este conteúdo em Authentication > Email Templates > Reset Password.
+  O link usa token_hash e cai em /auth/confirmar, que já sabe tratá-lo.
+-->
+<h2>Redefinição de senha</h2>
+
+<p>Recebemos um pedido para redefinir a senha da sua conta na Nossa Ouvidoria.
+Clique no botão abaixo para escolher uma nova senha. O link vale por 1 hora.</p>
+
+<p>
+  <a href="{{ .SiteURL }}/auth/confirmar?token_hash={{ .TokenHash }}&type=recovery&next=/redefinir-senha"
+     style="display:inline-block;background:#3538cd;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">
+    Definir nova senha
+  </a>
+</p>
+
+<p>Se você não pediu isso, pode ignorar este e-mail com segurança — sua senha
+continua a mesma.</p>

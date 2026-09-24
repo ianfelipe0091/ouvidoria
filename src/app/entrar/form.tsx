@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState } from 'react'
+import Link from 'next/link'
 
 import { Button, Field, FormError, Input } from '@/components/ui'
 import { signIn, type SignInState } from './actions'
@@ -25,6 +26,13 @@ export function SignInForm() {
       <Field label="Senha" required>
         <Input name="password" type="password" autoComplete="current-password" required />
       </Field>
+
+      <Link
+        href="/esqueci-senha"
+        className="-mt-1 self-end text-xs text-muted underline underline-offset-4 hover:text-foreground"
+      >
+        Esqueci minha senha
+      </Link>
 
       <Button type="submit" disabled={pending}>
         {pending ? 'Entrando…' : 'Entrar'}
