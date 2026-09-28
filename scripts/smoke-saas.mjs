@@ -191,10 +191,13 @@ try {
     await page.getByText('Plano alterado para Basic').waitFor({ timeout: 20000 })
     check('sem cobrança configurada, a troca aplica na hora', true)
 
+    // Sem gateway, a cobrança é manual: trocar de plano troca o plano, mas não
+    // tira da avaliação nem abre período pago — senão um cliente com avaliação
+    // vencida se desbloquearia sozinho. Quem ativa é o registro de pagamento.
     const { data: after } = await admin
       .from('subscriptions').select('status, plans(name)').eq('company_id', companyId).maybeSingle()
-    check('assinatura deixa a avaliação ao contratar',
-      after?.status === 'ativa' && after?.plans?.name === 'Basic',
+    check('trocar de plano não ativa a assinatura sem pagamento',
+      after?.status === 'trial' && after?.plans?.name === 'Basic',
       `${after?.status} / ${after?.plans?.name}`)
   }
 

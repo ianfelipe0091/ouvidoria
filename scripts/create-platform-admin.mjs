@@ -8,6 +8,10 @@
  *
  * Uso:
  *   ADMIN_EMAIL=voce@empresa.com ADMIN_PASSWORD='...' node scripts/create-platform-admin.mjs
+ *
+ * Para criar um administrador adicional (sócio, outro operador), acrescente
+ * ADMIN_ADDITIONAL=1 — sem isso o script se recusa, para que um segundo
+ * administrador nunca surja por engano.
  */
 import { createClient } from '@supabase/supabase-js'
 import { readFileSync } from 'node:fs'
@@ -20,7 +24,8 @@ try {
 } catch { /* em produção as variáveis vêm do ambiente */ }
 
 const { NEXT_PUBLIC_SUPABASE_URL: URL_, SUPABASE_SECRET_KEY: SECRET } = process.env
-const email = process.env.ADMIN_EMAIL
+// O Auth guarda o e-mail em minúsculas; o perfil acompanha para as buscas baterem.
+const email = process.env.ADMIN_EMAIL?.trim().toLowerCase()
 const password = process.env.ADMIN_PASSWORD
 const name = process.env.ADMIN_NAME ?? 'Administrador da plataforma'
 
@@ -45,9 +50,9 @@ const { data: existing } = await admin
   .eq('role', 'platform_admin')
   .limit(1)
 
-if (existing?.length) {
+if (existing?.length && process.env.ADMIN_ADDITIONAL !== '1') {
   console.error(`Já existe um administrador da plataforma (${existing[0].email}).`)
-  console.error('Para criar outro, use o painel da plataforma ou remova esta checagem.')
+  console.error('Para criar outro de propósito, rode de novo com ADMIN_ADDITIONAL=1.')
   process.exit(1)
 }
 

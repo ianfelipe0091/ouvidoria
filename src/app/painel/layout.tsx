@@ -1,4 +1,5 @@
 import { headers } from 'next/headers'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 import { BillingBlocked, type BillingState } from '@/components/billing-gate'
@@ -11,6 +12,12 @@ import { PanelNav, type NavItem } from './nav'
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   const { profile, supabase } = await requireProfile()
+
+  // O administrador da plataforma não pertence a empresa nenhuma: o painel de
+  // empresa não tem o que mostrar a ele. A casa dele é o Master.
+  if (profile.role === 'platform_admin' && !profile.company_id) {
+    redirect('/master')
+  }
 
   // As três consultas do cabeçalho não dependem umas das outras. Em série elas
   // somavam três idas ao banco antes de qualquer pixel; juntas custam uma.
@@ -120,9 +127,9 @@ export default async function PanelLayout({ children }: { children: React.ReactN
                   : 'Seu período de avaliação terminou.'}
               </span>
               {isAdmin ? (
-                <a href="/painel/plano" className="font-medium underline underline-offset-4">
+                <Link href="/painel/plano" className="font-medium underline underline-offset-4">
                   Ver planos
-                </a>
+                </Link>
               ) : null}
             </div>
           </div>

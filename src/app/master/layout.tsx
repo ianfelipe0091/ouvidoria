@@ -23,8 +23,8 @@ export default async function MasterLayout({ children }: { children: React.React
             </div>
           </div>
           <div className="flex items-center gap-3 text-xs">
-            <Link href="/painel" className="text-muted underline underline-offset-4">
-              Voltar ao painel
+            <Link href="/master" className="text-muted underline underline-offset-4">
+              Empresas
             </Link>
             <form action="/sair" method="post">
               <button type="submit" className="rounded-lg px-3 py-1.5 text-muted hover:bg-surface-muted">

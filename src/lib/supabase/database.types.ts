@@ -428,6 +428,8 @@ export type Database = {
           due_at: string | null
           hosted_url: string | null
           id: string
+          method: string | null
+          note: string | null
           number: string | null
           paid_at: string | null
           pdf_url: string | null
@@ -435,6 +437,7 @@ export type Database = {
           period_start: string | null
           provider: string
           provider_invoice_id: string
+          recorded_by: string | null
           status: Database["public"]["Enums"]["invoice_status"]
         }
         Insert: {
@@ -445,6 +448,8 @@ export type Database = {
           due_at?: string | null
           hosted_url?: string | null
           id?: string
+          method?: string | null
+          note?: string | null
           number?: string | null
           paid_at?: string | null
           pdf_url?: string | null
@@ -452,6 +457,7 @@ export type Database = {
           period_start?: string | null
           provider: string
           provider_invoice_id: string
+          recorded_by?: string | null
           status: Database["public"]["Enums"]["invoice_status"]
         }
         Update: {
@@ -462,6 +468,8 @@ export type Database = {
           due_at?: string | null
           hosted_url?: string | null
           id?: string
+          method?: string | null
+          note?: string | null
           number?: string | null
           paid_at?: string | null
           pdf_url?: string | null
@@ -469,6 +477,7 @@ export type Database = {
           period_start?: string | null
           provider?: string
           provider_invoice_id?: string
+          recorded_by?: string | null
           status?: Database["public"]["Enums"]["invoice_status"]
         }
         Relationships: [
@@ -1230,6 +1239,39 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_delete_company: {
+        Args: { p_company_id: string; p_confirm_slug: string }
+        Returns: Json
+      }
+      admin_mark_overdue: {
+        Args: { p_company_id: string; p_grace_days: number }
+        Returns: undefined
+      }
+      admin_register_payment: {
+        Args: {
+          p_amount: number
+          p_company_id: string
+          p_method: string
+          p_months: number
+          p_note?: string
+          p_paid_at: string
+        }
+        Returns: Json
+      }
+      admin_update_billing: {
+        Args: {
+          p_company_id: string
+          p_contracted_price: number
+          p_current_period_end: string
+          p_grace_until: string
+          p_trial_ends_at: string
+        }
+        Returns: undefined
+      }
+      admin_update_company: {
+        Args: { p_company_id: string; p_data: Json }
+        Returns: undefined
+      }
       apply_subscription_state: {
         Args: {
           p_cancel_at_period_end?: boolean
