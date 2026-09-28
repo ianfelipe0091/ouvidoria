@@ -21,6 +21,7 @@ export type Result = { error?: string; ok?: boolean; message?: string }
 
 function refresh(companyId: string) {
   revalidatePath('/master')
+  revalidatePath('/master/empresas')
   revalidatePath(`/master/empresas/${companyId}`)
 }
 
@@ -259,5 +260,6 @@ export async function deleteCompany(
   }
 
   revalidatePath('/master')
-  redirect(`/master?excluida=${encodeURIComponent(confirmSlug)}`)
+  revalidatePath('/master/empresas')
+  redirect(`/master/empresas?excluida=${encodeURIComponent(confirmSlug)}`)
 }

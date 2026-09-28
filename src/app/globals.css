@@ -47,6 +47,17 @@
   --flow-in: #2a78d6;
   --flow-out: #16a34a;
 
+  /* Situação da carteira no painel Master (barra segmentada). Validadas com o
+     validate_palette da skill de dataviz, em claro (#fff) e escuro (#15151a):
+     banda de luminosidade, croma, separação para daltonismo (pior par ΔE 10,1)
+     e visão normal (17,0) passam. A mesma sequência serve aos dois temas — só
+     o azul acompanha o --chart de cada um. Cor nunca sozinha: todo segmento
+     tem rótulo e contagem na legenda. */
+  --st-ok: #0ca30c;
+  --st-trial: var(--chart);
+  --st-attn: #c7860a;
+  --st-block: #d03b3b;
+
   --sev-grave-soft: #fdeceb;
   --sev-atencao-soft: #fdf3e3;
   --sev-neutro-soft: #e8eefc;

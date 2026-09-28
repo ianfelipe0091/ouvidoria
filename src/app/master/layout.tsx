@@ -1,9 +1,8 @@
-import Link from 'next/link'
-
 import { Badge } from '@/components/ui'
 import { Logo } from '@/components/marketing'
 import { BRAND } from '@/lib/brand'
 import { requirePlatformAdmin } from '@/lib/auth'
+import { MasterNav } from './nav'
 
 export default async function MasterLayout({ children }: { children: React.ReactNode }) {
   const { profile } = await requirePlatformAdmin()
@@ -22,16 +21,14 @@ export default async function MasterLayout({ children }: { children: React.React
               <p className="text-xs text-muted">{profile.full_name}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 text-xs">
-            <Link href="/master" className="text-muted underline underline-offset-4">
-              Empresas
-            </Link>
-            <form action="/sair" method="post">
-              <button type="submit" className="rounded-lg px-3 py-1.5 text-muted hover:bg-surface-muted">
-                Sair
-              </button>
-            </form>
-          </div>
+          <form action="/sair" method="post">
+            <button type="submit" className="rounded-lg px-3 py-1.5 text-xs text-muted hover:bg-surface-muted">
+              Sair
+            </button>
+          </form>
+        </div>
+        <div className="mx-auto w-full max-w-6xl px-6">
+          <MasterNav />
         </div>
       </header>
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-6">{children}</main>

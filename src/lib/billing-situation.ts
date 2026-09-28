@@ -17,6 +17,20 @@ export type Situation = {
   blocked: boolean
 }
 
+/**
+ * Agrupa a situação nas quatro faixas da carteira usadas nos gráficos do
+ * Master, mais "fora" (cancelada / sem assinatura), que não entra na barra.
+ */
+export type SituationGroup = 'ok' | 'trial' | 'attention' | 'blocked' | 'out'
+
+export function situationGroup(s: Situation): SituationGroup {
+  if (s.tone === 'ok') return 'ok'
+  if (s.tone === 'info') return 'trial'
+  if (s.tone === 'warn') return 'attention'
+  if (s.tone === 'danger') return 'blocked'
+  return 'out'
+}
+
 type Input = {
   companyStatus: 'ativa' | 'suspensa' | 'bloqueada' | 'cancelada'
   subscription: {

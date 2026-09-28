@@ -74,7 +74,7 @@ export default async function CompanyAdminPage(props: PageProps<'/master/empresa
 
   return (
     <div className="flex flex-col gap-5">
-      <Link href="/master" className="text-xs text-muted underline underline-offset-4">
+      <Link href="/master/empresas" className="text-xs text-muted underline underline-offset-4">
         ← Todas as empresas
       </Link>
 
