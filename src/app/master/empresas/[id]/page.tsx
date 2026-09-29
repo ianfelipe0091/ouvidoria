@@ -4,11 +4,13 @@ import { notFound } from 'next/navigation'
 import { Badge, Card, CardHeader, EmptyState } from '@/components/ui'
 import { requirePlatformAdmin } from '@/lib/auth'
 import { billingSituation } from '@/lib/billing-situation'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { formatLimit, formatMoney } from '@/lib/brand'
-import { ROLE_LABEL, formatDate, formatDateTime } from '@/lib/domain'
+import { formatDate, formatDateTime } from '@/lib/domain'
 import {
   AccessActions, BillingForm, CompanyForm, DeleteCompany, PaymentForm, PlanSelect,
 } from './client'
+import { CompanyUsers, type CompanyUser } from './users'
 
 /** Rótulos do histórico de ações do administrador da plataforma. */
 const ACTION_LABEL: Record<string, string> = {
@@ -18,6 +20,13 @@ const ACTION_LABEL: Record<string, string> = {
   'admin.situacao': 'Situação alterada',
   'admin.inadimplente': 'Marcada como inadimplente',
   'admin.trocar_plano': 'Plano alterado',
+  'admin.redefinir_senha': 'Nova senha gerada',
+}
+
+/** Campos de perfil com nome legível no histórico. */
+const PROFILE_FIELD: Record<string, string> = {
+  full_name: 'nome', email: 'e-mail', role: 'perfil', status: 'situação',
+  phone: 'telefone', job_title: 'cargo', department_id: 'departamento',
 }
 
 const METHOD_LABEL: Record<string, string> = {
@@ -37,7 +46,7 @@ export default async function CompanyAdminPage(props: PageProps<'/master/empresa
   const { id } = await props.params
   const { supabase } = await requirePlatformAdmin()
 
-  const [company, subscription, plans, invoices, users, usage, occurrences, history] =
+  const [company, subscription, plans, invoices, users, usage, occurrences, history, departments] =
     await Promise.all([
       supabase.from('companies').select('*').eq('id', id).maybeSingle(),
       supabase
@@ -49,18 +58,20 @@ export default async function CompanyAdminPage(props: PageProps<'/master/empresa
       supabase.from('invoices').select('*').eq('company_id', id).order('created_at', { ascending: false }),
       supabase
         .from('profiles')
-        .select('id, full_name, email, role, status, created_at')
+        .select('id, full_name, email, phone, job_title, department_id, role, status, created_at')
         .eq('company_id', id)
-        .order('created_at'),
+        .order('status')
+        .order('full_name'),
       supabase.rpc('company_usage', { p_company_id: id }),
       supabase.from('occurrences').select('id', { count: 'exact', head: true }).eq('company_id', id),
       supabase
         .from('audit_logs')
-        .select('id, action, actor_email, changes, created_at')
+        .select('id, action, actor_email, entity_id, changes, created_at')
         .eq('company_id', id)
-        .like('action', 'admin.%')
+        .or('action.like.admin.%,entity.eq.profiles')
         .order('created_at', { ascending: false })
-        .limit(30),
+        .limit(40),
+      supabase.from('departments').select('id, name').eq('company_id', id).eq('status', 'ativo').order('name'),
     ])
 
   const c = company.data
@@ -71,6 +82,13 @@ export default async function CompanyAdminPage(props: PageProps<'/master/empresa
   const situation = billingSituation({ companyStatus: c.status, subscription: sub })
   const used = (usage.data ?? {}) as { branches?: number; users?: number; occurrences_month?: number }
   const negotiated = plan ? !plan.self_service && Number(sub?.contracted_price ?? 0) === 0 : false
+
+  const companyUsers: CompanyUser[] = await withLastSignIn(users.data ?? [])
+  const userName = new Map(companyUsers.map((u) => [u.id, u.full_name]))
+  // Updates que só tocaram updated_at não dizem nada a quem lê o histórico.
+  const historyRows = (history.data ?? []).filter(
+    (h) => h.action !== 'update' || Object.keys(h.changes as object).some((k) => k !== 'updated_at'),
+  )
 
   return (
     <div className="flex flex-col gap-5">
@@ -224,6 +242,14 @@ export default async function CompanyAdminPage(props: PageProps<'/master/empresa
             )}
           </Card>
 
+          {/* ---------------------------------------------------- usuários */}
+          <CompanyUsers
+            companyId={c.id}
+            users={companyUsers}
+            departments={departments.data ?? []}
+            limitLabel={usersLimitLabel(used.users ?? 0, plan?.max_users ?? null)}
+          />
+
           {/* ------------------------------------------------ dados cadastrais */}
           <Card>
             <CardHeader
@@ -289,38 +315,16 @@ export default async function CompanyAdminPage(props: PageProps<'/master/empresa
             </dl>
           </Card>
 
-          {/* ---------------------------------------------------- usuários */}
-          <Card>
-            <CardHeader title="Usuários" description="Quem acessa o painel desta empresa." />
-            {!users.data?.length ? (
-              <EmptyState title="Nenhum usuário" />
-            ) : (
-              <ul className="divide-y divide-border">
-                {users.data.map((u) => (
-                  <li key={u.id} className="px-5 py-2.5">
-                    <p className="text-sm">
-                      {u.full_name}
-                      {u.status !== 'ativo' ? <span className="ml-1 text-xs text-muted">(inativo)</span> : null}
-                    </p>
-                    <p className="text-xs text-muted">
-                      {u.email} · {ROLE_LABEL[u.role]}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-
           {/* ---------------------------------------------------- histórico */}
           <Card>
-            <CardHeader title="Histórico" description="Ações da administração nesta conta." />
-            {!history.data?.length ? (
+            <CardHeader title="Histórico" description="Ações da administração e mudanças de usuários nesta conta." />
+            {!historyRows.length ? (
               <EmptyState title="Nenhuma ação registrada" />
             ) : (
               <ul className="divide-y divide-border">
-                {history.data.map((h) => (
+                {historyRows.map((h) => (
                   <li key={h.id} className="px-5 py-2.5">
-                    <p className="text-sm">{ACTION_LABEL[h.action] ?? h.action}</p>
+                    <p className="text-sm">{historyLabel(h, userName)}</p>
                     <p className="text-xs text-muted">
                       {formatDateTime(h.created_at)}
                       {h.actor_email ? ` · ${h.actor_email}` : ''}
@@ -345,4 +349,65 @@ export default async function CompanyAdminPage(props: PageProps<'/master/empresa
       </div>
     </div>
   )
+}
+
+// ------------------------------------------------------------- auxiliares --
+
+type HistoryRow = { action: string; entity_id: string | null; changes: unknown }
+
+/** Rótulo de uma linha do histórico, inclusive as mudanças de usuários. */
+function historyLabel(h: HistoryRow, names: Map<string, string>) {
+  if (h.action.startsWith('admin.')) {
+    const who = h.action === 'admin.redefinir_senha' && h.entity_id ? names.get(h.entity_id) : null
+    return `${ACTION_LABEL[h.action] ?? h.action}${who ? ` · ${who}` : ''}`
+  }
+  const changes = (h.changes ?? {}) as Record<string, { para?: unknown } | unknown>
+  const name =
+    (h.entity_id && names.get(h.entity_id)) ||
+    (typeof (changes as { full_name?: unknown }).full_name === 'string'
+      ? (changes as { full_name: string }).full_name
+      : 'usuário removido')
+  if (h.action === 'insert') return `Usuário criado · ${name}`
+  if (h.action === 'delete') return `Usuário excluído · ${name}`
+  const fields = Object.keys(changes)
+    .filter((k) => k in PROFILE_FIELD)
+    .map((k) => PROFILE_FIELD[k])
+  return `Usuário alterado · ${name}${fields.length ? ` (${fields.join(', ')})` : ''}`
+}
+
+/**
+ * Junta o último acesso, que só o Auth conhece. Uma consulta por usuário, em
+ * paralelo — empresas têm poucos usuários. Sem a chave secreta, a lista sai
+ * sem essa informação em vez de quebrar a página.
+ */
+async function withLastSignIn(
+  rows: Array<{
+    id: string; full_name: string; email: string; phone: string | null; job_title: string | null
+    department_id: string | null; role: CompanyUser['role']; status: CompanyUser['status']; created_at: string
+  }>,
+): Promise<CompanyUser[]> {
+  let admin: ReturnType<typeof createAdminClient> | null = null
+  try {
+    admin = createAdminClient()
+  } catch {
+    admin = null
+  }
+  const lastSeen = await Promise.all(
+    rows.map(async (r) => {
+      if (!admin) return null
+      const { data } = await admin.auth.admin.getUserById(r.id)
+      return data.user?.last_sign_in_at ?? null
+    }),
+  )
+  return rows.map((r, i) => ({
+    ...r,
+    created_label: formatDate(r.created_at),
+    last_sign_in_label: lastSeen[i] ? formatDateTime(lastSeen[i]) : null,
+  }))
+}
+
+/** "3 de 5 ativos permitidos pelo plano" ou "3 ativos · sem limite no plano". */
+function usersLimitLabel(active: number, max: number | null) {
+  const n = `${active} ${active === 1 ? 'ativo' : 'ativos'}`
+  return max === null ? `${n} · sem limite no plano` : `${active} de ${max} ativos permitidos pelo plano`
 }

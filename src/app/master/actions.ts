@@ -1,5 +1,6 @@
 'use server'
 
+import { randomInt } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -10,8 +11,15 @@ import { digits, isValidCnpj, isValidEmail } from '@/lib/validation'
 
 type CompanyStatus = Database['public']['Enums']['company_status']
 type SubscriptionStatus = Database['public']['Enums']['subscription_status']
+type AppRole = Database['public']['Enums']['app_role']
 
-export type Result = { error?: string; ok?: boolean; message?: string }
+export type Result = {
+  error?: string
+  ok?: boolean
+  message?: string
+  /** Senha gerada, exibida uma única vez para ser entregue ao usuário. */
+  password?: string
+}
 
 /*
  * Todas as ações daqui são do administrador da plataforma. Cada uma confere o
@@ -262,4 +270,271 @@ export async function deleteCompany(
   revalidatePath('/master')
   revalidatePath('/master/empresas')
   redirect(`/master/empresas?excluida=${encodeURIComponent(confirmSlug)}`)
+}
+
+// ------------------------------------------------------------- usuários ----
+
+/*
+ * Os usuários de uma empresa cliente, geridos pela administração da
+ * plataforma — para suporte: cliente que perdeu o acesso, trocou de e-mail,
+ * precisa promover alguém ou desligar um funcionário.
+ *
+ * O perfil é gravado com o cliente do administrador logado, não com a chave
+ * secreta: o RLS confere de novo a permissão e o gatilho de auditoria registra
+ * quem mudou o quê. A chave secreta entra só no que mora no Auth (e-mail de
+ * login, senha), sempre depois de confirmar que o usuário é desta empresa.
+ */
+
+const USER_ROLES: AppRole[] = ['company_admin', 'ombudsman', 'manager', 'area_responsible']
+
+/** Senha legível (sem 0/O, 1/l/I), sorteada com gerador criptográfico. */
+function generatePassword() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
+  let out = ''
+  for (let i = 0; i < 12; i++) out += alphabet[randomInt(alphabet.length)]
+  return out
+}
+
+function adminClient(): ReturnType<typeof createAdminClient> | null {
+  try {
+    return createAdminClient()
+  } catch {
+    return null
+  }
+}
+
+const NO_SECRET = 'SUPABASE_SECRET_KEY não está configurada no servidor; ela é necessária para alterar logins.'
+
+const EMAIL_TAKEN = 'Já existe um login com este e-mail.'
+
+function authErrorMessage(error: { message: string; code?: string }) {
+  if (error.code === 'email_exists' || /already (been )?registered|already exists/i.test(error.message)) {
+    return EMAIL_TAKEN
+  }
+  return error.message
+}
+
+/**
+ * O e-mail já é de outra pessoa? Conferido antes de ir ao Auth, que nem
+ * sempre diz o motivo da recusa ("Error updating user").
+ */
+async function emailTaken(
+  admin: NonNullable<ReturnType<typeof adminClient>>,
+  email: string,
+  exceptUserId?: string,
+) {
+  let query = admin.from('profiles').select('id').ilike('email', email.replace(/[\\%_]/g, '\\$&'))
+  if (exceptUserId) query = query.neq('id', exceptUserId)
+  const { data } = await query.limit(1)
+  return Boolean(data?.length)
+}
+
+/** O usuário, desde que pertença à empresa informada. */
+async function companyUser(
+  supabase: Awaited<ReturnType<typeof requirePlatformAdmin>>['supabase'],
+  companyId: string,
+  userId: string,
+) {
+  const { data } = await supabase
+    .from('profiles')
+    .select('id, email, full_name, role, status')
+    .eq('id', userId)
+    .eq('company_id', companyId)
+    .maybeSingle()
+  return data
+}
+
+/** Lê e valida os campos comuns a criar e editar. */
+async function readUserForm(
+  supabase: Awaited<ReturnType<typeof requirePlatformAdmin>>['supabase'],
+  companyId: string,
+  formData: FormData,
+) {
+  const fullName = String(formData.get('full_name') ?? '').trim()
+  const email = String(formData.get('email') ?? '').trim().toLowerCase()
+  const role = String(formData.get('role') ?? '') as AppRole
+  const departmentId = String(formData.get('department_id') ?? '') || null
+
+  if (!fullName) return { error: 'Informe o nome.' } as const
+  if (!isValidEmail(email)) return { error: 'Informe um e-mail válido.' } as const
+  if (!USER_ROLES.includes(role)) return { error: 'Perfil de acesso inválido.' } as const
+
+  if (departmentId) {
+    const { data: dep } = await supabase
+      .from('departments')
+      .select('id')
+      .eq('id', departmentId)
+      .eq('company_id', companyId)
+      .maybeSingle()
+    if (!dep) return { error: 'Departamento inválido.' } as const
+  }
+
+  return {
+    data: {
+      full_name: fullName,
+      email,
+      role,
+      department_id: departmentId,
+      phone: String(formData.get('phone') ?? '').trim() || null,
+      job_title: String(formData.get('job_title') ?? '').trim() || null,
+    },
+  } as const
+}
+
+/** Registra no histórico uma ação que não passa por tabela auditada. */
+async function logUserAction(
+  admin: NonNullable<ReturnType<typeof adminClient>>,
+  actor: { id: string; email: string },
+  companyId: string,
+  action: string,
+  userId: string,
+  changes: Record<string, unknown>,
+) {
+  await admin.from('audit_logs').insert({
+    company_id: companyId,
+    actor_id: actor.id,
+    actor_email: actor.email,
+    action,
+    entity: 'profiles',
+    entity_id: userId,
+    changes: changes as never,
+  })
+}
+
+export async function adminUpdateUser(
+  companyId: string,
+  userId: string,
+  _prev: Result,
+  formData: FormData,
+): Promise<Result> {
+  const { supabase } = await requirePlatformAdmin()
+
+  const current = await companyUser(supabase, companyId, userId)
+  if (!current) return { error: 'Usuário não encontrado nesta empresa.' }
+
+  const parsed = await readUserForm(supabase, companyId, formData)
+  if ('error' in parsed) return { error: parsed.error }
+  const data = parsed.data
+  const status = formData.get('status') === 'inativo' ? 'inativo' : 'ativo'
+
+  // A empresa não pode ficar sem ninguém que administre o painel: seria um
+  // cliente trancado para fora da própria conta.
+  const losesAdmin =
+    current.role === 'company_admin' &&
+    current.status === 'ativo' &&
+    (data.role !== 'company_admin' || status !== 'ativo')
+  if (losesAdmin) {
+    const { count } = await supabase
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('company_id', companyId)
+      .eq('role', 'company_admin')
+      .eq('status', 'ativo')
+      .neq('id', userId)
+    if (!count) {
+      return {
+        error: 'Este é o único administrador ativo da empresa. Promova outro usuário a administrador antes.',
+      }
+    }
+  }
+
+  // E-mail de login mora no Auth: muda lá primeiro, que é onde pode colidir
+  // com outra conta. Se o perfil falhar depois, o Auth volta ao que era.
+  const emailChanged = data.email !== current.email.toLowerCase()
+  const admin = emailChanged ? adminClient() : null
+  if (emailChanged) {
+    if (!admin) return { error: NO_SECRET }
+    if (await emailTaken(admin, data.email, userId)) return { error: EMAIL_TAKEN }
+    const { error } = await admin.auth.admin.updateUserById(userId, { email: data.email, email_confirm: true })
+    if (error) return { error: authErrorMessage(error) }
+  }
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ ...data, status })
+    .eq('id', userId)
+    .eq('company_id', companyId)
+
+  if (error) {
+    if (emailChanged && admin) {
+      await admin.auth.admin.updateUserById(userId, { email: current.email, email_confirm: true })
+    }
+    return { error: error.message }
+  }
+
+  refresh(companyId)
+  return {
+    ok: true,
+    message: emailChanged
+      ? `Usuário salvo. O login agora é ${data.email}.`
+      : 'Usuário salvo.',
+  }
+}
+
+export async function adminCreateUser(
+  companyId: string,
+  _prev: Result,
+  formData: FormData,
+): Promise<Result> {
+  const { supabase } = await requirePlatformAdmin()
+
+  const { data: company } = await supabase.from('companies').select('id').eq('id', companyId).maybeSingle()
+  if (!company) return { error: 'Empresa não encontrada.' }
+
+  const parsed = await readUserForm(supabase, companyId, formData)
+  if ('error' in parsed) return { error: parsed.error }
+
+  const admin = adminClient()
+  if (!admin) return { error: NO_SECRET }
+
+  if (await emailTaken(admin, parsed.data.email)) return { error: EMAIL_TAKEN }
+
+  const password = generatePassword()
+  const { data: created, error: authError } = await admin.auth.admin.createUser({
+    email: parsed.data.email,
+    password,
+    email_confirm: true,
+  })
+  if (authError || !created.user) {
+    return { error: authError ? authErrorMessage(authError) : 'Não foi possível criar o login.' }
+  }
+
+  // O limite de usuários do plano vale aqui também (gatilho no banco).
+  const { error } = await supabase.from('profiles').insert({
+    id: created.user.id,
+    company_id: companyId,
+    ...parsed.data,
+  })
+  if (error) {
+    // Sem perfil, o login ficaria órfão: entra e não enxerga nada.
+    await admin.auth.admin.deleteUser(created.user.id)
+    return { error: error.message }
+  }
+
+  refresh(companyId)
+  return { ok: true, message: `Usuário ${parsed.data.email} criado.`, password }
+}
+
+/** Troca a senha por uma nova, sorteada, para entregar ao usuário. */
+export async function adminResetUserPassword(companyId: string, userId: string): Promise<Result> {
+  const { supabase, profile } = await requirePlatformAdmin()
+
+  const target = await companyUser(supabase, companyId, userId)
+  if (!target) return { error: 'Usuário não encontrado nesta empresa.' }
+
+  const admin = adminClient()
+  if (!admin) return { error: NO_SECRET }
+
+  const password = generatePassword()
+  const { error } = await admin.auth.admin.updateUserById(userId, { password })
+  if (error) return { error: error.message }
+
+  // A senha não passa por tabela auditada; o registro é feito à parte. A
+  // senha em si nunca vai para o log.
+  await logUserAction(admin, profile, companyId, 'admin.redefinir_senha', userId, {
+    usuario: target.email,
+  })
+
+  refresh(companyId)
+  return { ok: true, password }
 }
