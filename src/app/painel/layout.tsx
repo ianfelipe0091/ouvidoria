@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui'
 import { Logo } from '@/components/marketing'
 import { BRAND, SUBSCRIPTION_LABEL, SUBSCRIPTION_TONE, daysUntil } from '@/lib/brand'
 import { requireProfile } from '@/lib/auth'
+import { isMercadoPagoEnabled } from '@/lib/billing/mercadopago'
 import { ROLE_LABEL } from '@/lib/domain'
 import { PanelNav, type NavItem } from './nav'
 
@@ -62,7 +63,11 @@ export default async function PanelLayout({ children }: { children: React.ReactN
 
   if (state?.blocked && profile.role !== 'platform_admin' && !isBillingRoute) {
     return (
-      <BillingBlocked state={state} canManage={profile.role === 'company_admin'} />
+      <BillingBlocked
+        state={state}
+        canManage={profile.role === 'company_admin'}
+        onlinePayment={isMercadoPagoEnabled()}
+      />
     )
   }
 

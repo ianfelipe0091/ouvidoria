@@ -29,10 +29,12 @@ function financeWhatsapp(plan: string) {
  * veem apenas o aviso, porque não têm o que fazer a respeito.
  */
 export function BillingBlocked({
-  state, canManage,
+  state, canManage, onlinePayment = false,
 }: {
   state: BillingState
   canManage: boolean
+  /** Pagamento on-line ligado: pagar é o caminho principal, não o WhatsApp. */
+  onlinePayment?: boolean
 }) {
   // A situação da empresa vem antes da assinatura: um bloqueio feito pela
   // administração explica o acesso cortado melhor do que qualquer data.
@@ -74,7 +76,16 @@ export function BillingBlocked({
         {/* A cobrança é confirmada pela administração da plataforma: o caminho
             para regularizar é falar com ela. A tela de plano segue acessível ao
             administrador da empresa para consultar faturas e escolher o plano. */}
-        {canManage ? (
+        {canManage && onlinePayment && state.company_status !== 'bloqueada' ? (
+          <div className="flex flex-col gap-2">
+            <LinkButton href="/painel/plano">Pagar agora (Pix, boleto ou cartão)</LinkButton>
+            {whatsapp ? (
+              <LinkButton href={whatsapp} target="_blank" rel="noopener noreferrer" variant="secondary">
+                Falar com o financeiro
+              </LinkButton>
+            ) : null}
+          </div>
+        ) : canManage ? (
           <div className="flex flex-col gap-2">
             {whatsapp ? (
               <LinkButton href={whatsapp} target="_blank" rel="noopener noreferrer">

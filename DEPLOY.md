@@ -102,7 +102,35 @@ Esse **cria dados reais** — rode contra um ambiente de teste, não contra
 produção com dados de clientes. Em redes com proxy de saída, o script repassa
 `HTTPS_PROXY` ao navegador automaticamente.
 
-## 7. Ativar a cobrança (opcional)
+## 7. Cobrança pelo Mercado Pago
+
+O cliente paga pela tela **Plano** do painel (Pix, boleto ou cartão, de 1 a 12
+meses). O plano e o período são liberados sozinhos quando o Mercado Pago
+confirma o pagamento; os dias já pagos nunca se perdem.
+
+1. Em **Vercel → Settings → Environment Variables** (ambiente *Production*):
+
+   | Variável | Valor |
+   |---|---|
+   | `MERCADOPAGO_ACCESS_TOKEN` | Access Token de **produção** (`APP_USR-...`), em Mercado Pago → Suas integrações → Credenciais de produção |
+   | `MERCADOPAGO_WEBHOOK_SECRET` | *(opcional)* "Assinatura secreta" gerada em Suas integrações → Webhooks |
+
+   Depois, faça um novo deploy (Deployments → ⋯ → Redeploy) para valer.
+
+2. **Webhook**: cada pagamento já informa o endereço
+   `https://nossaouvidoria.com.br/api/webhooks/mercadopago`, então não é preciso
+   cadastrar nada. Se quiser a assinatura secreta do passo 1, cadastre esse mesmo
+   endereço em Suas integrações → Webhooks, com o evento **Pagamentos**.
+
+A segurança não depende do segredo: a notificação só diz "confira o pagamento
+X", e o sistema busca o pagamento na API do Mercado Pago com o token antes de
+liberar qualquer coisa. Valor abaixo do plano não libera — fica registrado no
+Master para conferência, assim como estornos.
+
+Sem `MERCADOPAGO_ACCESS_TOKEN`, a tela de plano volta ao modo sem pagamento
+on-line e o registro manual no Master continua funcionando normalmente.
+
+## 7b. Cobrança pelo Stripe (alternativa, não usada)
 
 Sem estas variáveis o produto funciona, mas sem pagamento automático.
 

@@ -21,6 +21,9 @@ const ACTION_LABEL: Record<string, string> = {
   'admin.inadimplente': 'Marcada como inadimplente',
   'admin.trocar_plano': 'Plano alterado',
   'admin.redefinir_senha': 'Nova senha gerada',
+  'pagamento.mercadopago': 'Pagamento confirmado pelo Mercado Pago',
+  'pagamento.divergente': 'Pagamento com valor abaixo do plano — conferir',
+  'pagamento.estornado': 'Pagamento estornado no Mercado Pago — conferir o período',
 }
 
 /** Campos de perfil com nome legível no histórico. */
@@ -68,7 +71,7 @@ export default async function CompanyAdminPage(props: PageProps<'/master/empresa
         .from('audit_logs')
         .select('id, action, actor_email, entity_id, changes, created_at')
         .eq('company_id', id)
-        .or('action.like.admin.%,entity.eq.profiles')
+        .or('action.like.admin.%,action.like.pagamento.%,entity.eq.profiles')
         .order('created_at', { ascending: false })
         .limit(40),
       supabase.from('departments').select('id, name').eq('company_id', id).eq('status', 'ativo').order('name'),
@@ -357,7 +360,7 @@ type HistoryRow = { action: string; entity_id: string | null; changes: unknown }
 
 /** Rótulo de uma linha do histórico, inclusive as mudanças de usuários. */
 function historyLabel(h: HistoryRow, names: Map<string, string>) {
-  if (h.action.startsWith('admin.')) {
+  if (h.action.startsWith('admin.') || h.action.startsWith('pagamento.')) {
     const who = h.action === 'admin.redefinir_senha' && h.entity_id ? names.get(h.entity_id) : null
     return `${ACTION_LABEL[h.action] ?? h.action}${who ? ` · ${who}` : ''}`
   }

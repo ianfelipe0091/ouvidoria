@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 
 import { requireCompanyAdmin } from '@/lib/auth'
 import { getBillingProvider } from '@/lib/billing'
+import { PAYABLE_MONTHS, createCheckout, isMercadoPagoEnabled } from '@/lib/billing/mercadopago'
 
 export type Result = { error?: string; ok?: boolean; message?: string; redirectUrl?: string }
 
@@ -26,6 +27,10 @@ async function baseUrl() {
  * utilizável em avaliação e em desenvolvimento.
  */
 export async function changePlan(planSlug: string): Promise<Result> {
+  // Com o Mercado Pago ligado, trocar de plano é pagar pelo plano novo: a
+  // troca acontece quando o pagamento é confirmado.
+  if (isMercadoPagoEnabled()) return startPayment(planSlug, 1)
+
   const { profile, supabase } = await requireCompanyAdmin()
   const companyId = profile.company_id!
 
@@ -84,6 +89,60 @@ export async function changePlan(planSlug: string): Promise<Result> {
     return {
       error: cause instanceof Error ? cause.message : 'Não foi possível abrir o pagamento.',
     }
+  }
+}
+
+/**
+ * Abre o checkout do Mercado Pago para pagar N meses de um plano.
+ *
+ * Nada muda na assinatura aqui: plano e período só mudam quando o pagamento é
+ * confirmado (webhook ou retorno do cliente). Abandonar o checkout não dá nada.
+ */
+export async function startPayment(planSlug: string, months: number): Promise<Result> {
+  const { profile, supabase } = await requireCompanyAdmin()
+  const companyId = profile.company_id!
+
+  if (!isMercadoPagoEnabled()) return { error: 'Pagamento on-line ainda não está disponível.' }
+  if (!(PAYABLE_MONTHS as readonly number[]).includes(months)) return { error: 'Período inválido.' }
+
+  const [{ data: plan }, { data: company }, { data: usage }] = await Promise.all([
+    supabase
+      .from('plans')
+      .select('slug, name, monthly_price, self_service, is_active, max_branches, max_users')
+      .eq('slug', planSlug)
+      .maybeSingle(),
+    supabase.from('companies').select('legal_name, trade_name').eq('id', companyId).maybeSingle(),
+    supabase.rpc('company_usage', { p_company_id: companyId }),
+  ])
+
+  if (!plan || !plan.is_active) return { error: 'Plano não encontrado.' }
+  if (!plan.self_service || Number(plan.monthly_price) <= 0) {
+    return { error: `O plano ${plan.name} é contratado com um especialista.` }
+  }
+  if (!company) return { error: 'Empresa não encontrada.' }
+
+  // Pagar por um plano menor que o uso atual liberaria algo que o próprio
+  // plano recusa. Melhor avisar antes do dinheiro sair.
+  const used = (usage ?? {}) as { branches?: number; users?: number }
+  if (plan.max_branches !== null && (used.branches ?? 0) > plan.max_branches) {
+    return { error: `O plano ${plan.name} permite até ${plan.max_branches} filial(is); hoje há ${used.branches} ativas.` }
+  }
+  if (plan.max_users !== null && (used.users ?? 0) > plan.max_users) {
+    return { error: `O plano ${plan.name} permite até ${plan.max_users} usuários; hoje há ${used.users} ativos.` }
+  }
+
+  try {
+    const { url } = await createCheckout({
+      companyId,
+      companyName: company.trade_name ?? company.legal_name,
+      payerEmail: profile.email,
+      plan: { slug: plan.slug, name: plan.name, monthlyPrice: Number(plan.monthly_price) },
+      months,
+      baseUrl: await baseUrl(),
+    })
+    return { ok: true, redirectUrl: url }
+  } catch (cause) {
+    return { error: cause instanceof Error ? cause.message : 'Não foi possível abrir o pagamento.' }
   }
 }
 

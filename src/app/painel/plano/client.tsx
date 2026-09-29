@@ -5,7 +5,7 @@ import { useState, useTransition } from 'react'
 import { Button, FormError, LinkButton } from '@/components/ui'
 import { salesWhatsappUrl } from '@/lib/brand'
 import { PlanGrid, type PlanCard } from '@/components/marketing'
-import { changePlan, openBillingPortal } from './actions'
+import { changePlan, openBillingPortal, startPayment } from './actions'
 
 export function PlanChooser({
   plans, currentSlug, billingEnabled,
@@ -103,6 +103,124 @@ export function BillingPortalButton({ label = 'Gerenciar pagamento' }: { label?:
         {pending ? 'Abrindo…' : label}
       </Button>
       <FormError message={error} />
+    </div>
+  )
+}
+
+// ------------------------------------------------------- Mercado Pago ----
+
+type PayablePlan = { slug: string; name: string; monthly_price: number }
+
+const MONTH_OPTIONS = [1, 3, 6, 12] as const
+const BRL = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+
+/**
+ * Pagamento pelo Mercado Pago: escolhe o plano e quantos meses, e segue para o
+ * checkout deles (Pix, boleto ou cartão). O plano atual vem pré-selecionado —
+ * o caso mais comum é só renovar.
+ */
+export function PaymentPanel({
+  plans, currentSlug,
+}: {
+  plans: PayablePlan[]
+  currentSlug: string
+}) {
+  const initial = plans.some((p) => p.slug === currentSlug) ? currentSlug : plans[0]?.slug
+  const [slug, setSlug] = useState(initial)
+  const [months, setMonths] = useState<number>(1)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+
+  const plan = plans.find((p) => p.slug === slug)
+  if (!plan) return null
+  const total = Math.round(plan.monthly_price * months * 100) / 100
+
+  return (
+    <div className="flex flex-col gap-4">
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1 text-xs font-medium">Plano</legend>
+        <div className="flex flex-wrap gap-2">
+          {plans.map((p) => (
+            <label
+              key={p.slug}
+              className={`flex cursor-pointer flex-col rounded-lg border px-3 py-2 text-sm transition-colors ${
+                p.slug === slug ? 'border-accent bg-accent-soft' : 'border-border hover:bg-surface-muted'
+              }`}
+            >
+              <input
+                type="radio"
+                name="plano"
+                value={p.slug}
+                checked={p.slug === slug}
+                onChange={() => setSlug(p.slug)}
+                className="sr-only"
+              />
+              <span className="font-medium">
+                {p.name}
+                {p.slug === currentSlug ? <span className="ml-1 text-[11px] font-normal text-muted">(atual)</span> : null}
+              </span>
+              <span className="text-xs text-muted">{BRL(p.monthly_price)}/mês</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1 text-xs font-medium">Período</legend>
+        <div className="flex flex-wrap gap-2">
+          {MONTH_OPTIONS.map((m) => (
+            <label
+              key={m}
+              className={`cursor-pointer rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                m === months ? 'border-accent bg-accent-soft font-medium text-accent' : 'border-border hover:bg-surface-muted'
+              }`}
+            >
+              <input
+                type="radio"
+                name="meses"
+                value={m}
+                checked={m === months}
+                onChange={() => setMonths(m)}
+                className="sr-only"
+              />
+              {m === 1 ? '1 mês' : `${m} meses`}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-surface-muted px-4 py-3">
+        <div>
+          <p className="text-xs text-muted">Total</p>
+          <p className="text-xl font-semibold tabular-nums">{BRL(total)}</p>
+          <p className="text-[11px] text-muted">
+            Plano {plan.name} · {months === 1 ? '1 mês' : `${months} meses`}
+            {months >= 6 ? ' · no cartão, em até 12x' : ''}
+          </p>
+        </div>
+        <Button
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => {
+              setError(null)
+              const result = await startPayment(plan.slug, months)
+              if (result.redirectUrl) {
+                window.location.href = result.redirectUrl
+                return
+              }
+              setError(result.error ?? 'Não foi possível abrir o pagamento.')
+            })
+          }
+        >
+          {pending ? 'Abrindo o Mercado Pago…' : 'Pagar com Mercado Pago'}
+        </Button>
+      </div>
+      <FormError message={error} />
+      <p className="text-[11px] leading-relaxed text-muted">
+        Pix, boleto ou cartão, no ambiente seguro do Mercado Pago. Pix e cartão liberam na hora; boleto, em
+        até 3 dias úteis após o pagamento. Os dias que você já pagou não se perdem: o novo período começa no
+        fim do atual.
+      </p>
     </div>
   )
 }

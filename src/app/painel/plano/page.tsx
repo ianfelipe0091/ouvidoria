@@ -7,8 +7,10 @@ import {
 } from '@/lib/brand'
 import { requireCompanyAdmin } from '@/lib/auth'
 import { isBillingEnabled } from '@/lib/billing'
+import { getPayment, isMercadoPagoEnabled, syncPayment, type SyncResult } from '@/lib/billing/mercadopago'
 import { formatDate } from '@/lib/domain'
-import { BillingPortalButton, PlanChooser } from './client'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { BillingPortalButton, PaymentPanel, PlanChooser } from './client'
 
 type Usage = { branches: number; users: number; occurrences_month: number }
 
@@ -32,7 +34,13 @@ export default async function PlanPage(props: PageProps<'/painel/plano'>) {
   const params = await props.searchParams
   const { profile, supabase } = await requireCompanyAdmin()
   const companyId = profile.company_id!
-  const billingEnabled = isBillingEnabled()
+  const mpEnabled = isMercadoPagoEnabled()
+  const billingEnabled = isBillingEnabled() || mpEnabled
+
+  // Volta do Mercado Pago: confere o pagamento na hora, sem esperar o webhook.
+  // Antes das consultas abaixo, para a tela já mostrar o período novo.
+  const paymentId = firstParam(params.payment_id) ?? firstParam(params.collection_id)
+  const confirmation = mpEnabled && paymentId ? await confirmReturn(paymentId, companyId) : null
 
   const [subscription, plans, usage, invoices] = await Promise.all([
     supabase
@@ -65,6 +73,10 @@ export default async function PlanPage(props: PageProps<'/painel/plano'>) {
   const graceLeft = daysUntil(subscription.data.grace_until)
   const checkout = typeof params.checkout === 'string' ? params.checkout : null
 
+  const payable = (plans.data ?? [])
+    .filter((p) => p.self_service && Number(p.monthly_price) > 0)
+    .map((p) => ({ slug: p.slug, name: p.name, monthly_price: Number(p.monthly_price) }))
+
   const cards = (plans.data ?? []).map((p) => ({
     ...p,
     features: Array.isArray(p.features) ? (p.features as string[]) : [],
@@ -80,7 +92,21 @@ export default async function PlanPage(props: PageProps<'/painel/plano'>) {
 
       {/* O retorno do checkout é informativo: o plano só muda quando o webhook
           confirma o pagamento, o que pode levar alguns segundos. */}
-      {checkout === 'sucesso' ? (
+      {confirmation?.outcome === 'aplicado' || confirmation?.outcome === 'ja_aplicado' ? (
+        <p role="status" className="rounded-lg bg-ok-soft px-3 py-2 text-sm text-ok">
+          Pagamento confirmado. Obrigado! Seu plano está pago até{' '}
+          <strong>{formatDate(subscription.data.current_period_end)}</strong>.
+        </p>
+      ) : confirmation?.outcome === 'pendente' || checkout === 'pendente' ? (
+        <p role="status" className="rounded-lg bg-info-soft px-3 py-2 text-sm text-info">
+          Pagamento em processamento. No Pix, a confirmação chega em instantes; no boleto, em até 3 dias
+          úteis depois de pago. O acesso é liberado automaticamente.
+        </p>
+      ) : confirmation?.outcome === 'valor_divergente' ? (
+        <p role="alert" className="rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn">
+          Recebemos o pagamento, mas o valor não bate com o plano. Nossa equipe vai conferir e liberar.
+        </p>
+      ) : checkout === 'sucesso' && !mpEnabled ? (
         <p className="rounded-lg bg-ok-soft px-3 py-2 text-xs text-ok">
           Pagamento recebido. A mudança de plano aparece aqui assim que o provedor
           confirmar — normalmente em alguns segundos.
@@ -146,6 +172,22 @@ export default async function PlanPage(props: PageProps<'/painel/plano'>) {
         </Card>
       </div>
 
+      {mpEnabled && payable.length ? (
+        <Card>
+          <CardHeader
+            title={subscription.data.status === 'trial' ? 'Contratar plano' : 'Pagar mensalidade'}
+            description={
+              subscription.data.status === 'ativa' && subscription.data.current_period_end
+                ? `Pago até ${formatDate(subscription.data.current_period_end)}. Pague antes para não interromper o acesso.`
+                : 'Escolha o plano e o período. O acesso é liberado assim que o pagamento é confirmado.'
+            }
+          />
+          <div className="px-5 py-4">
+            <PaymentPanel plans={payable} currentSlug={plan.slug} />
+          </div>
+        </Card>
+      ) : null}
+
       <Card>
         <CardHeader
           title="Uso dos limites"
@@ -162,7 +204,7 @@ export default async function PlanPage(props: PageProps<'/painel/plano'>) {
           title="Faturas"
           description={
             billingEnabled
-              ? 'Emitidas pelo provedor de pagamento.'
+              ? 'Pagamentos feitos e em aberto.'
               : 'Aparecem aqui quando a cobrança automática for ativada.'
           }
         />
@@ -171,7 +213,7 @@ export default async function PlanPage(props: PageProps<'/painel/plano'>) {
             title="Nenhuma fatura ainda"
             description={
               billingEnabled
-                ? 'A primeira fatura é gerada quando você assinar um plano.'
+                ? 'Os pagamentos aparecem aqui assim que forem feitos.'
                 : 'O faturamento está sendo acertado fora do sistema.'
             }
           />
@@ -219,7 +261,8 @@ export default async function PlanPage(props: PageProps<'/painel/plano'>) {
                           rel="noopener noreferrer"
                           className="underline underline-offset-4"
                         >
-                          Ver
+                          {/* Pix ou boleto ainda não pago: o link leva ao código. */}
+                          {invoice.status === 'aberta' ? 'Pagar' : 'Ver'}
                         </a>
                       ) : null}
                     </td>
@@ -237,7 +280,7 @@ export default async function PlanPage(props: PageProps<'/painel/plano'>) {
         </h2>
         <p className="text-xs text-muted">
           {billingEnabled
-            ? 'O pagamento é processado pelo provedor. Seu plano muda assim que o pagamento for confirmado.'
+            ? 'O pagamento é feito pelo Mercado Pago. Seu plano muda assim que o pagamento for confirmado.'
             : 'A cobrança automática ainda não está ativa: a mudança vale na hora e o faturamento é acertado pelo comercial.'}
         </p>
         <PlanChooser plans={cards} currentSlug={plan.slug} billingEnabled={billingEnabled} />
@@ -272,4 +315,26 @@ function LimitBar({ label, used, limit }: { label: string; used: number; limit: 
       ) : null}
     </div>
   )
+}
+
+function firstParam(value: string | string[] | undefined) {
+  const v = Array.isArray(value) ? value[0] : value
+  return v && /^\d+$/.test(v) ? v : null
+}
+
+/**
+ * Confere o pagamento informado no retorno do checkout. Só aplica se o
+ * pagamento for mesmo desta empresa — o id vem na URL e qualquer um pode
+ * trocá-lo. A aplicação em si é a mesma, idempotente, do webhook.
+ */
+async function confirmReturn(paymentId: string, companyId: string): Promise<SyncResult | null> {
+  try {
+    const payment = await getPayment(paymentId)
+    const owner = payment.metadata?.company_id ?? payment.external_reference?.split(':')[0]
+    if (owner !== companyId) return null
+    return await syncPayment(createAdminClient(), payment)
+  } catch {
+    // O webhook cobre: se a consulta falhar aqui, a confirmação chega por lá.
+    return null
+  }
 }
