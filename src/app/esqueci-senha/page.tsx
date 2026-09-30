@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { Card } from '@/components/ui'
-import { Logo, SiteFooter } from '@/components/marketing'
+import { AuthShell } from '@/components/auth-shell'
 import { BRAND } from '@/lib/brand'
 import { ResetRequestForm } from './form'
 
@@ -13,12 +13,7 @@ export default async function ForgotPasswordPage(props: PageProps<'/esqueci-senh
   const linkError = params.erro === 'link'
 
   return (
-    <div className="flex min-h-full flex-1 flex-col">
-      <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-6 py-16">
-        <Link href="/" className="flex items-center gap-2 self-start">
-          <Logo />
-          <span className="text-sm font-semibold">{BRAND.name}</span>
-        </Link>
+    <AuthShell>
 
         <header className="flex flex-col gap-1">
           <h1 className="text-xl font-semibold tracking-tight">Recuperar senha</h1>
@@ -43,9 +38,6 @@ export default async function ForgotPasswordPage(props: PageProps<'/esqueci-senh
             Voltar para o login
           </Link>
         </p>
-      </main>
-
-      <SiteFooter />
-    </div>
+    </AuthShell>
   )
 }

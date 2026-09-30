@@ -24,7 +24,10 @@ export async function GET(request: Request) {
   const next = url.searchParams.get('next') ?? '/redefinir-senha'
 
   // Só caminhos internos: um `next` externo viraria redirect aberto.
-  const dest = next.startsWith('/') && !next.startsWith('//') ? next : '/redefinir-senha'
+  // A checagem é feita no endereço já interpretado: "/\site.com" passa por um
+  // teste de texto e o navegador o lê como "//site.com", outro domínio.
+  const parsed = new URL(next, url.origin)
+  const dest = parsed.origin === url.origin ? parsed.pathname + parsed.search : '/redefinir-senha'
 
   const supabase = await createClient()
 

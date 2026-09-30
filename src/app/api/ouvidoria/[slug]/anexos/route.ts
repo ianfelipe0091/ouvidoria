@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { BUCKET, storagePath, validateUpload } from '@/lib/attachments'
+import { BUCKET, matchesSignature, storagePath, validateUpload } from '@/lib/attachments'
+import { allowIp } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,6 +28,12 @@ export async function POST(request: Request, context: RouteContext<'/api/ouvidor
   }
   if (!files.length) {
     return NextResponse.json({ error: 'Nenhum arquivo enviado.' }, { status: 400 })
+  }
+  if (files.length > 5) {
+    return NextResponse.json({ error: 'Envie no máximo 5 arquivos por vez.' }, { status: 400 })
+  }
+  if (!(await allowIp('anexos', 20, 10 * 60_000))) {
+    return NextResponse.json({ error: 'Muitos envios em pouco tempo. Aguarde alguns minutos.' }, { status: 429 })
   }
 
   // Prova de posse do código. Falha aqui não distingue protocolo inexistente
@@ -76,12 +83,25 @@ export async function POST(request: Request, context: RouteContext<'/api/ouvidor
     .maybeSingle()
   if (!occurrence) return NextResponse.json({ error: 'Manifestação não encontrada.' }, { status: 404 })
 
+  // Teto por manifestação: sem ele, quem tem o código encheria o armazenamento.
+  const { count: existing } = await admin
+    .from('attachments')
+    .select('id', { count: 'exact', head: true })
+    .eq('occurrence_id', occurrence.id)
+    .eq('uploaded_by_reporter', true)
+  if ((existing ?? 0) + files.length > 20) {
+    return NextResponse.json({ error: 'Limite de 20 anexos por manifestação atingido.' }, { status: 400 })
+  }
+
   const maxMb = settings.max_attachment_mb ?? 10
   const saved: string[] = []
 
   for (const file of files) {
     const check = validateUpload(file, maxMb)
     if (!check.ok) return NextResponse.json({ error: check.error }, { status: 400 })
+    if (!(await matchesSignature(file))) {
+      return NextResponse.json({ error: `O arquivo ${file.name} não é do tipo que diz ser.` }, { status: 400 })
+    }
 
     const path = storagePath(company.id, occurrence.id, file.name)
     const { error: uploadError } = await admin.storage

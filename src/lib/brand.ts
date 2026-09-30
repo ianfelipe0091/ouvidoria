@@ -9,9 +9,9 @@
  * `company_settings`, e é ela que aparece no canal público do cliente.
  */
 export const BRAND = {
-  name: 'Ouvidoria',
+  name: 'Nossa Ouvidoria',
   /** Usado onde o nome sozinho seria ambíguo. */
-  fullName: 'Ouvidoria — Plataforma SaaS',
+  fullName: 'Nossa Ouvidoria — Plataforma de ouvidoria',
   tagline: 'Plataforma de ouvidoria e relacionamento para empresas',
   description:
     'Receba, trate e responda manifestações num canal próprio da sua empresa. ' +

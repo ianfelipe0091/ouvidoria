@@ -1,5 +1,6 @@
 'use server'
 
+import { TOO_MANY, allowIp } from '@/lib/rate-limit'
 import { redirect } from 'next/navigation'
 
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -26,6 +27,9 @@ export async function signUp(_prev: SignUpState, form: FormData): Promise<SignUp
   const password = String(form.get('password') ?? '')
   const confirm = String(form.get('password_confirm') ?? '')
   const planSlug = String(form.get('plan') ?? 'basic')
+
+  // Cada cadastro cria uma empresa inteira: poucos por IP bastam.
+  if (!(await allowIp('signup', 5, 60 * 60_000))) return { error: TOO_MANY }
 
   if (!legalName) return { error: 'Informe a razão social da empresa.' }
   if (!isValidCnpj(taxId)) return { error: 'CNPJ inválido. Confira os dígitos.' }

@@ -31,6 +31,9 @@ export function RegistrationForm({ channel }: { channel: Channel }) {
   const [uploadNote, setUploadNote] = useState<string | null>(null)
   const [stepIndex, setStepIndex] = useState(0)
   const [result, setResult] = useState<SubmitResult | null>(null)
+  // Proteção contra robôs: quando o formulário abriu e uma armadilha invisível.
+  const [startedAt] = useState(() => Date.now())
+  const [website, setWebsite] = useState('')
   const [pending, startTransition] = useTransition()
 
   // As etapas dependem de como a empresa configurou o canal: sem filiais
@@ -82,6 +85,8 @@ export function RegistrationForm({ channel }: { channel: Channel }) {
           occurredLocation: occurredLocation || null,
           peopleInvolved: peopleInvolved || null,
           hasWitnesses: null,
+          website,
+          startedAt,
       })
 
       setResult(submitted)
@@ -123,6 +128,17 @@ export function RegistrationForm({ channel }: { channel: Channel }) {
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Armadilha para robôs: fora da tela e fora do Tab. Pessoas não veem. */}
+      <input
+        type="text"
+        name="ouv_confirmacao_hp"
+        value={website}
+        onChange={(e) => setWebsite(e.target.value)}
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        className="absolute -left-[9999px] h-px w-px opacity-0"
+      />
       <ol className="flex flex-wrap items-center gap-1.5" aria-label="Etapas">
         {steps.map((id, index) => (
           <li

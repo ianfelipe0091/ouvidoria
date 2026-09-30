@@ -1,5 +1,6 @@
 'use server'
 
+import { TOO_MANY, allowIp } from '@/lib/rate-limit'
 import { headers } from 'next/headers'
 
 import { createClient } from '@/lib/supabase/server'
@@ -31,6 +32,7 @@ export async function requestReset(
 ): Promise<ResetRequestState> {
   const email = String(formData.get('email') ?? '').trim().toLowerCase()
   if (!isValidEmail(email)) return { error: 'Informe um e-mail válido.' }
+  if (!(await allowIp('reset', 5, 15 * 60_000))) return { error: TOO_MANY }
 
   const supabase = await createClient()
   const redirectTo = `${await baseUrl()}/auth/confirmar?next=/redefinir-senha`

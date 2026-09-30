@@ -49,3 +49,29 @@ export function validateUpload(file: { size: number; type: string }, maxMb: numb
   }
   return { ok: true }
 }
+
+/**
+ * Confere os primeiros bytes do arquivo contra o tipo declarado. O tipo vem do
+ * navegador e pode ser forjado: um HTML renomeado para .pdf passaria só pela
+ * checagem de MIME.
+ */
+export async function matchesSignature(file: Blob & { type: string }) {
+  const head = new Uint8Array(await file.slice(0, 8).arrayBuffer())
+  const starts = (...bytes: number[]) => bytes.every((b, i) => head[i] === b)
+  switch (file.type) {
+    case 'application/pdf':
+      return starts(0x25, 0x50, 0x44, 0x46) // %PDF
+    case 'image/jpeg':
+      return starts(0xff, 0xd8, 0xff)
+    case 'image/png':
+      return starts(0x89, 0x50, 0x4e, 0x47)
+    case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+    case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+      return starts(0x50, 0x4b, 0x03, 0x04) // zip (docx/xlsx)
+    case 'application/msword':
+    case 'application/vnd.ms-excel':
+      return starts(0xd0, 0xcf, 0x11, 0xe0) // OLE (doc/xls antigos)
+    default:
+      return false
+  }
+}

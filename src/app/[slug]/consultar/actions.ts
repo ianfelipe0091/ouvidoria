@@ -1,5 +1,6 @@
 'use server'
 
+import { TOO_MANY, allowIp } from '@/lib/rate-limit'
 import { createClient } from '@/lib/supabase/server'
 import type { OccurrenceResolution, OccurrenceStatus } from '@/lib/domain'
 
@@ -39,6 +40,9 @@ export async function trackManifestacao(
   protocol: string,
   trackingCode: string,
 ): Promise<TrackResult> {
+  // Tentativa e erro de protocolo + código.
+  if (!(await allowIp('track', 40, 10 * 60_000))) return { ok: false, error: TOO_MANY }
+
   const supabase = await createClient()
   const { data, error } = await supabase.rpc('track_manifestacao', {
     p_company_slug: slug,
@@ -56,6 +60,8 @@ export async function replyManifestacao(
   trackingCode: string,
   body: string,
 ): Promise<TrackResult> {
+  if (!(await allowIp('reply', 20, 10 * 60_000))) return { ok: false, error: TOO_MANY }
+
   const supabase = await createClient()
   const { error } = await supabase.rpc('reply_manifestacao', {
     p_company_slug: slug,

@@ -22,8 +22,11 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Ouvidoria",
-  description: "Sistema de ouvidoria",
+  // Base das URLs absolutas das prévias de link (Open Graph).
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://nossaouvidoria.com.br"),
+  title: "Nossa Ouvidoria",
+  description:
+    "Canal de ouvidoria para empresas: receba, trate e responda reclamações, denúncias, sugestões e elogios com prazo e sigilo.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

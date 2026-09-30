@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
+import { TOO_MANY, allowIp } from '@/lib/rate-limit'
 
 export type SignInState = { error?: string }
 
@@ -12,6 +13,11 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
 
   if (!email || !password) {
     return { error: 'Informe e-mail e senha.' }
+  }
+
+  // Adivinhação de senha: por IP e por conta.
+  if (!(await allowIp('login', 30, 10 * 60_000)) || !(await allowIp(`login:${email.toLowerCase()}`, 8, 10 * 60_000))) {
+    return { error: TOO_MANY }
   }
 
   const supabase = await createClient()

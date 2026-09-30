@@ -1,8 +1,9 @@
 import 'server-only'
 
+import { cache } from 'react'
 import { notFound } from 'next/navigation'
 
-import { createClient } from '@/lib/supabase/server'
+import { createPublicClient } from '@/lib/supabase/public'
 
 /**
  * Formato devolvido por public.get_ouvidoria_channel().
@@ -34,9 +35,15 @@ export type Channel = {
   }>
 }
 
-/** Carrega o canal ou devolve 404. Empresa suspensa não tem canal no ar. */
-export async function getChannel(slug: string): Promise<Channel> {
-  const supabase = await createClient()
+/**
+ * Carrega o canal ou devolve 404. Empresa suspensa não tem canal no ar.
+ *
+ * Cliente público (sem cookies) e `cache()`: metadados, layout e página pedem
+ * o canal cada um, e agora isso é uma consulta só por requisição. O cliente
+ * público evita ler cookies à toa numa página que não depende de sessão.
+ */
+export const getChannel = cache(async (slug: string): Promise<Channel> => {
+  const supabase = createPublicClient()
   const { data, error } = await supabase.rpc('get_ouvidoria_channel', { p_company_slug: slug })
 
   if (error || !data) {
@@ -44,4 +51,4 @@ export async function getChannel(slug: string): Promise<Channel> {
   }
 
   return data as unknown as Channel
-}
+})

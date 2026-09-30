@@ -419,9 +419,9 @@ export function Gauge({
   caption?: ReactNode
 }) {
   const width = 240
-  const height = 150
+  const height = 140
   const cx = width / 2
-  const cy = height - 12
+  const cy = height - 18
   const raio = 96
   const stroke = 16
 
@@ -431,12 +431,12 @@ export function Gauge({
     x: cx + r * Math.cos(anguloDe(v)),
     y: cy - r * Math.sin(anguloDe(v)),
   })
+  // Nenhum trecho de um semicírculo passa de 180°, então a flag de "arco
+  // grande" é sempre 0 — com 1, o SVG desenhava o caminho longo, por baixo.
   const arco = (de: number, ate: number, r: number) => {
     const p1 = ponto(de, r)
     const p2 = ponto(ate, r)
-    const grande = ate - de > 50 ? 1 : 0
-    // varredura 0: sentido anti-horário, da esquerda para a direita.
-    return `M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} A ${r} ${r} 0 ${grande} 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`
+    return `M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} A ${r} ${r} 0 0 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`
   }
 
   const temValor = value !== null
@@ -446,7 +446,9 @@ export function Gauge({
     zona === 'grave' ? 'var(--sev-grave)' : zona === 'atencao' ? 'var(--sev-atencao)' : 'var(--sev-positivo)'
   const zonaRotulo = zona === 'grave' ? 'Crítico' : zona === 'atencao' ? 'Requer atenção' : 'Saudável'
 
-  const ponteiro = ponto(v, raio - stroke / 2 - 4)
+  // Marca da posição: um traço curto atravessando o arco, sem cobrir o número.
+  const marcaIn = ponto(v, raio - stroke / 2 - 5)
+  const marcaOut = ponto(v, raio + stroke / 2 + 3)
 
   return (
     <Card>
@@ -463,57 +465,52 @@ export function Gauge({
           }
         >
           {/* Três zonas de fundo, em tom suave, marcam a régua de saúde. */}
-          <path d={arco(0, zones.warn, raio)} fill="none" stroke="var(--sev-grave-soft)" strokeWidth={stroke} strokeLinecap="butt" />
-          <path d={arco(zones.warn, zones.good, raio)} fill="none" stroke="var(--sev-atencao-soft)" strokeWidth={stroke} strokeLinecap="butt" />
-          <path d={arco(zones.good, 100, raio)} fill="none" stroke="var(--sev-positivo-soft)" strokeWidth={stroke} strokeLinecap="butt" />
+          <path d={arco(0, zones.warn, raio)} fill="none" stroke="var(--sev-grave-soft)" strokeWidth={stroke} />
+          <path d={arco(zones.warn, zones.good, raio)} fill="none" stroke="var(--sev-atencao-soft)" strokeWidth={stroke} />
+          <path d={arco(zones.good, 100, raio)} fill="none" stroke="var(--sev-positivo-soft)" strokeWidth={stroke} />
 
           {/* Arco preenchido até o valor, na cor da zona atingida. */}
           {temValor ? (
-            <path
-              d={arco(0, Math.max(0.5, v), raio)}
-              fill="none"
-              stroke={zonaCor}
-              strokeWidth={stroke}
-              strokeLinecap="butt"
+            <path d={arco(0, Math.max(0.5, v), raio)} fill="none" stroke={zonaCor} strokeWidth={stroke} />
+          ) : null}
+
+          {temValor ? (
+            <line
+              x1={marcaIn.x.toFixed(2)}
+              y1={marcaIn.y.toFixed(2)}
+              x2={marcaOut.x.toFixed(2)}
+              y2={marcaOut.y.toFixed(2)}
+              stroke="var(--foreground)"
+              strokeWidth={3}
+              strokeLinecap="round"
             />
           ) : null}
 
-          {/* Ponteiro do relógio. */}
-          {temValor ? (
-            <>
-              <line
-                x1={cx}
-                y1={cy}
-                x2={ponteiro.x.toFixed(2)}
-                y2={ponteiro.y.toFixed(2)}
-                stroke="var(--foreground)"
-                strokeWidth={2.5}
-                strokeLinecap="round"
-              />
-              <circle cx={cx} cy={cy} r={4} fill="var(--foreground)" />
-            </>
-          ) : null}
+          {/* Valor no vão do arco. */}
+          <text
+            x={cx}
+            y={cy - 14}
+            textAnchor="middle"
+            className="fill-[var(--foreground)] text-[34px] font-semibold tabular-nums"
+          >
+            {temValor ? `${v}${suffix}` : '—'}
+          </text>
 
-          {/* Extremos da régua. */}
-          <text x={ponto(0, raio).x - 4} y={cy + 4} textAnchor="end" className="fill-[var(--muted)] text-[9px]">0</text>
-          <text x={ponto(100, raio).x + 4} y={cy + 4} textAnchor="start" className="fill-[var(--muted)] text-[9px]">100</text>
+          {/* Extremos da régua, abaixo das pontas do arco. */}
+          <text x={ponto(0, raio).x} y={cy + 14} textAnchor="middle" className="fill-[var(--muted)] text-[10px]">0</text>
+          <text x={ponto(100, raio).x} y={cy + 14} textAnchor="middle" className="fill-[var(--muted)] text-[10px]">100</text>
         </svg>
 
-        <div className="-mt-6 flex flex-col items-center">
-          <span className="text-3xl font-semibold tabular-nums tracking-tight">
-            {temValor ? `${v}${suffix}` : '—'}
+        {temValor ? (
+          <span
+            className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+            style={{ background: `var(--sev-${zona}-soft)`, color: zonaCor }}
+          >
+            {zonaRotulo}
           </span>
-          {temValor ? (
-            <span
-              className="mt-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
-              style={{ background: `var(--sev-${zona}-soft)`, color: zonaCor }}
-            >
-              {zonaRotulo}
-            </span>
-          ) : (
-            <span className="mt-1 text-[11px] text-muted">sem dados no período</span>
-          )}
-        </div>
+        ) : (
+          <span className="text-[11px] text-muted">sem dados no período</span>
+        )}
 
         {caption ? <p className="mt-1 text-center text-xs text-muted">{caption}</p> : null}
       </div>
@@ -530,8 +527,10 @@ export function Gauge({
  * obrigatória com duas séries; a cor foi validada (ΔE 25 entre azul e verde) e
  * ainda assim cada linha tem seu nome na legenda, para não depender da cor.
  *
- * A leitura que importa: quando a linha de recebidas descola para cima da de
- * encerradas, o acúmulo está crescendo.
+ * Colunas lado a lado por dia (por semana em períodos longos), e não linhas:
+ * com poucos registros por dia, a linha virava uma sequência de picos.
+ * A leitura que importa: quando as recebidas passam das encerradas, o acúmulo
+ * está crescendo.
  */
 export function FlowChart({
   title, description, data,
@@ -540,43 +539,53 @@ export function FlowChart({
   description?: string
   data: Array<{ dia: string; recebidas: number; encerradas: number }>
 }) {
+  // Períodos longos viram semanas: 90 colunas-dia não cabem legíveis.
+  const series0 = data.length > 45 ? porSemana(data) : data
   const width = 720
   const height = 200
-  const padding = { top: 14, right: 10, bottom: 24, left: 30 }
+  const padding = { top: 16, right: 8, bottom: 24, left: 30 }
   const plotWidth = width - padding.left - padding.right
   const plotHeight = height - padding.top - padding.bottom
 
-  const max = Math.max(1, ...data.flatMap((d) => [d.recebidas, d.encerradas]))
-  const stepX = data.length > 1 ? plotWidth / (data.length - 1) : 0
-  const x = (i: number) => padding.left + i * stepX
+  const bruto = Math.max(1, ...series0.flatMap((d) => [d.recebidas, d.encerradas]))
+  const passo = Math.max(1, Math.ceil(bruto / 3))
+  const max = passo * 3
+  const ticks = [0, passo, passo * 2, max]
   const y = (v: number) => padding.top + plotHeight - (v / max) * plotHeight
+  const base = padding.top + plotHeight
 
-  const linha = (chave: 'recebidas' | 'encerradas') =>
-    data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${x(i)} ${y(d[chave])}`).join(' ')
-  const area = (chave: 'recebidas' | 'encerradas') =>
-    data.length > 1
-      ? `${linha(chave)} L ${x(data.length - 1)} ${padding.top + plotHeight} L ${x(0)} ${padding.top + plotHeight} Z`
-      : ''
+  const slot = plotWidth / Math.max(1, series0.length)
+  const barra = Math.max(2, Math.min(14, (slot - 4) / 2))
+  const gap = Math.min(2, barra / 3)
 
-  const ticks = [0, Math.round(max / 2), max].filter((v, i, a) => a.indexOf(v) === i)
+  // Coluna com topo arredondado e base reta, apoiada na linha de base.
+  const coluna = (x: number, v: number) => {
+    if (v <= 0) return ''
+    const top = y(v)
+    const r = Math.min(3, barra / 2, base - top)
+    return `M ${x} ${base} V ${top + r} Q ${x} ${top} ${x + r} ${top} H ${x + barra - r} Q ${x + barra} ${top} ${x + barra} ${top + r} V ${base} Z`
+  }
+
   const totalRecebidas = data.reduce((s, d) => s + d.recebidas, 0)
   const totalEncerradas = data.reduce((s, d) => s + d.encerradas, 0)
+  const semanal = series0 !== data
 
   const series = [
     { chave: 'recebidas' as const, rotulo: 'Recebidas', cor: 'var(--flow-in)', total: totalRecebidas },
     { chave: 'encerradas' as const, rotulo: 'Encerradas', cor: 'var(--flow-out)', total: totalEncerradas },
   ]
+  const meio = Math.floor((series0.length - 1) / 2)
 
   return (
     <Card>
       <CardHeader
         title={title}
-        description={description}
+        description={semanal ? `${description ?? ''} Agrupado por semana.`.trim() : description}
         action={
           <div className="flex flex-wrap items-center gap-3 text-xs">
             {series.map((s) => (
               <span key={s.chave} className="flex items-center gap-1.5">
-                <span aria-hidden className="h-0.5 w-4 rounded-full" style={{ background: s.cor }} />
+                <span aria-hidden className="size-2.5 rounded-sm" style={{ background: s.cor }} />
                 {s.rotulo}
                 <span className="font-medium tabular-nums">{s.total}</span>
               </span>
@@ -598,31 +607,53 @@ export function FlowChart({
             </g>
           ))}
 
-          {/* Encerradas ao fundo, recebidas na frente: a que interessa quando
-              elas se cruzam é a de recebidas subindo. */}
-          {data.length > 1 ? <path d={area('encerradas')} fill="var(--flow-out)" opacity={0.1} /> : null}
-          {data.length > 1 ? <path d={area('recebidas')} fill="var(--flow-in)" opacity={0.1} /> : null}
+          {series0.map((d, i) => {
+            const x0 = padding.left + i * slot + (slot - (barra * 2 + gap)) / 2
+            const rotulo = semanal ? `semana de ${shortDate(d.dia)}` : shortDate(d.dia)
+            return (
+              <g key={d.dia} className="group">
+                {/* Faixa de destaque no hover, do tamanho do dia inteiro. */}
+                <rect
+                  x={padding.left + i * slot}
+                  y={padding.top}
+                  width={slot}
+                  height={plotHeight}
+                  className="fill-[var(--chart-grid)] opacity-0 transition-opacity group-hover:opacity-60"
+                />
+                <path d={coluna(x0, d.recebidas)} fill="var(--flow-in)" />
+                <path d={coluna(x0 + barra + gap, d.encerradas)} fill="var(--flow-out)" />
+                <title>{`${rotulo} — recebidas: ${d.recebidas}, encerradas: ${d.encerradas}`}</title>
+              </g>
+            )
+          })}
 
-          <path d={linha('encerradas')} fill="none" stroke="var(--flow-out)" strokeWidth={2} strokeLinejoin="round" />
-          <path d={linha('recebidas')} fill="none" stroke="var(--flow-in)" strokeWidth={2} strokeLinejoin="round" />
+          <line x1={padding.left} x2={width - padding.right} y1={base} y2={base} stroke="var(--border)" strokeWidth={1} />
 
-          {data.map((d, i) => (
-            <g key={d.dia}>
-              <circle cx={x(i)} cy={y(d.encerradas)} r={3} fill="var(--flow-out)" opacity={d.encerradas > 0 ? 1 : 0} />
-              <circle cx={x(i)} cy={y(d.recebidas)} r={3} fill="var(--flow-in)" opacity={d.recebidas > 0 ? 1 : 0}>
-                <title>{`${shortDate(d.dia)} — recebidas: ${d.recebidas}, encerradas: ${d.encerradas}`}</title>
-              </circle>
-            </g>
-          ))}
-
-          {data.length > 1 ? (
+          {series0.length > 1 ? (
             <>
-              <text x={x(0)} y={height - 6} textAnchor="start" className="fill-[var(--muted)] text-[9px]">{shortDate(data[0].dia)}</text>
-              <text x={x(data.length - 1)} y={height - 6} textAnchor="end" className="fill-[var(--muted)] text-[9px]">{shortDate(data[data.length - 1].dia)}</text>
+              <text x={padding.left} y={height - 6} textAnchor="start" className="fill-[var(--muted)] text-[9px]">{shortDate(series0[0].dia)}</text>
+              {series0.length > 6 ? (
+                <text x={padding.left + meio * slot + slot / 2} y={height - 6} textAnchor="middle" className="fill-[var(--muted)] text-[9px]">{shortDate(series0[meio].dia)}</text>
+              ) : null}
+              <text x={width - padding.right} y={height - 6} textAnchor="end" className="fill-[var(--muted)] text-[9px]">{shortDate(series0[series0.length - 1].dia)}</text>
             </>
           ) : null}
         </svg>
       </div>
     </Card>
   )
+}
+
+/** Soma dias consecutivos em blocos de 7, rotulados pelo primeiro dia. */
+function porSemana(data: Array<{ dia: string; recebidas: number; encerradas: number }>) {
+  const out: typeof data = []
+  for (let i = 0; i < data.length; i += 7) {
+    const bloco = data.slice(i, i + 7)
+    out.push({
+      dia: bloco[0].dia,
+      recebidas: bloco.reduce((s, d) => s + d.recebidas, 0),
+      encerradas: bloco.reduce((s, d) => s + d.encerradas, 0),
+    })
+  }
+  return out
 }

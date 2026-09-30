@@ -89,11 +89,12 @@ export default async function OccurrencesPage(props: PageProps<'/painel/ocorrenc
                 {data.map((row) => {
                   const sla = slaState(row.status, row.due_at, warningDays)
                   return (
-                    <tr key={row.id} className="border-b border-border last:border-0 hover:bg-surface-muted">
+                    <tr key={row.id} className="relative cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-surface-muted">
                       <td className="px-4 py-3">
                         <Link
                           href={`/painel/ocorrencias/${row.id}`}
-                          className="font-mono text-xs font-medium whitespace-nowrap underline-offset-4 hover:underline"
+                          // A linha inteira é clicável: o link se estende sobre ela.
+                          className="font-mono text-xs font-medium whitespace-nowrap underline-offset-4 after:absolute after:inset-0 hover:underline"
                         >
                           {row.protocol}
                         </Link>
@@ -101,9 +102,9 @@ export default async function OccurrencesPage(props: PageProps<'/painel/ocorrenc
                           <span className="ml-2 text-[11px] text-muted">anônima</span>
                         ) : null}
                       </td>
-                      <td className="px-4 py-3 text-xs text-muted">{formatDate(row.opened_at)}</td>
+                      <td className="px-4 py-3 text-xs whitespace-nowrap text-muted">{formatDate(row.opened_at)}</td>
                       <td className="px-4 py-3 text-xs">{row.occurrence_types?.name ?? '—'}</td>
-                      <td className="px-4 py-3 text-xs">{row.branches?.name ?? '—'}</td>
+                      <td className="px-4 py-3 text-xs whitespace-nowrap">{row.branches?.name ?? '—'}</td>
                       <td className="px-4 py-3 text-xs">{row.categories?.name ?? '—'}</td>
                       <td className="px-4 py-3 text-xs">{row.profiles?.full_name ?? '—'}</td>
                       <td className="px-4 py-3">
@@ -112,7 +113,7 @@ export default async function OccurrencesPage(props: PageProps<'/painel/ocorrenc
                           {STATUS_LABEL[row.status]}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <span
                           className={
                             sla === 'em_atraso'

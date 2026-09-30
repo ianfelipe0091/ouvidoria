@@ -1,5 +1,6 @@
 'use server'
 
+import { TOO_MANY, allowIp } from '@/lib/rate-limit'
 import { createClient } from '@/lib/supabase/server'
 
 export type SubmitResult =
@@ -23,6 +24,10 @@ export type ManifestacaoInput = {
   occurredLocation: string | null
   peopleInvolved: string | null
   hasWitnesses: boolean | null
+  /** Campo invisível: gente não preenche, robô preenche. */
+  website?: string
+  /** Quando o formulário foi aberto (ms). Envio em menos de 3 s é robô. */
+  startedAt?: number
 }
 
 const nullable = (value: string | null | undefined) => {
@@ -38,6 +43,14 @@ const nullable = (value: string | null | undefined) => {
  * regras no cliente criaria duas fontes de verdade que divergem com o tempo.
  */
 export async function submitManifestacao(input: ManifestacaoInput): Promise<SubmitResult> {
+  // Proteção contra robôs que inundariam a caixa da empresa: armadilha
+  // invisível, tempo mínimo de preenchimento e limite por IP.
+  if (input.website?.trim()) return { ok: false, error: 'Não foi possível registrar agora.' }
+  if (input.startedAt && Date.now() - input.startedAt < 3000) {
+    return { ok: false, error: 'Revise os dados e envie novamente.' }
+  }
+  if (!(await allowIp('manifestacao', 6, 10 * 60_000))) return { ok: false, error: TOO_MANY }
+
   if (input.description.trim().length < 10) {
     return { ok: false, error: 'Descreva o ocorrido com pelo menos 10 caracteres.' }
   }

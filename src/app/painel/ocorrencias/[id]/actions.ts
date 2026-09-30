@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 
 import { requireProfile } from '@/lib/auth'
 import { CLOSED_STATUSES, STATUS_LABEL, type OccurrenceStatus } from '@/lib/domain'
-import { BUCKET, storagePath, validateUpload } from '@/lib/attachments'
+import { BUCKET, storagePath, matchesSignature, validateUpload } from '@/lib/attachments'
 import type { Database } from '@/lib/supabase/database.types'
 
 type Resolution = Database['public']['Enums']['occurrence_resolution']
@@ -245,6 +245,7 @@ export async function uploadAttachments(
   for (const file of files) {
     const check = validateUpload(file, maxMb)
     if (!check.ok) return { error: check.error }
+    if (!(await matchesSignature(file))) return { error: `O arquivo ${file.name} não é do tipo que diz ser.` }
 
     const path = storagePath(occurrence.company_id, occurrenceId, file.name)
     const { error: uploadError } = await supabase.storage

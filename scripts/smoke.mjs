@@ -63,7 +63,7 @@ try {
   await page.goto(`${BASE}/${SLUG}`, { waitUntil: 'networkidle' })
   check('canal carrega', await page.getByRole('heading', { level: 1 }).isVisible())
 
-  await page.getByRole('link', { name: 'Registrar' }).click()
+  await page.getByRole('link', { name: 'Registrar', exact: true }).click()
   await page.waitForURL('**/registrar')
 
   // Etapa 1 — identificação
@@ -97,6 +97,9 @@ try {
   const revisao = await page.textContent('body')
   check('revisão mostra o relato', revisao.includes(RELATO))
   check('revisão lista o anexo escolhido', revisao.includes('comprovante-teste.png'))
+  // O canal recusa envios feitos em menos de 3 s (proteção contra robôs);
+  // uma pessoa nunca preenche as etapas tão rápido, o teste precisa esperar.
+  await page.waitForTimeout(3000)
   await page.getByRole('button', { name: /Enviar manifestação/i }).click()
 
   await page.getByText('Manifestação registrada').waitFor({ timeout: 15000 })
