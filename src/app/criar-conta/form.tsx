@@ -74,7 +74,7 @@ export function SignUpForm({ planSlug }: { planSlug: string }) {
         <fieldset className="flex flex-col gap-4 border-t border-border pt-4">
           <legend className="mb-1 text-xs font-semibold text-muted">Senha de acesso</legend>
 
-          <Field label="Senha" required hint="Pelo menos 10 caracteres.">
+          <Field label="Senha" required hint="Pelo menos 10 caracteres. Evite palavras óbvias como “senha”, “ouvidoria”, “admin” ou “123456”.">
             <Input name="password" type="password" required autoComplete="new-password" minLength={10} />
           </Field>
 

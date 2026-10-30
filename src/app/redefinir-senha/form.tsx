@@ -12,7 +12,7 @@ export function NewPasswordForm() {
     <form action={action} className="flex flex-col gap-4">
       <FormError message={state.error} />
 
-      <Field label="Nova senha" required hint="Pelo menos 10 caracteres.">
+      <Field label="Nova senha" required hint="Pelo menos 10 caracteres. Evite palavras óbvias como “senha”, “ouvidoria”, “admin” ou “123456”.">
         <Input name="password" type="password" required autoComplete="new-password" minLength={10} />
       </Field>
 
