@@ -197,12 +197,19 @@ export default async function LandingPage() {
   // Os planos vêm do banco, não de uma lista no código: é a mesma tabela que
   // define os limites cobrados, então a página de preços não pode divergir.
   const supabase = createPublicClient()
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('plans')
     .select('slug, name, description, monthly_price, max_branches, max_users, trial_days, features, self_service')
     .eq('is_active', true)
     .eq('is_public', true)
     .order('sort_order')
+
+  // A página é gerada uma vez, na publicação, e fica congelada. Se o banco não
+  // responder nesse momento, é melhor a publicação falhar (e a versão anterior
+  // continuar no ar) do que publicar a landing sem a tabela de preços.
+  if (error || !data?.length) {
+    throw new Error(`Landing sem planos: ${error?.message ?? 'nenhum plano público encontrado'}`)
+  }
 
   const plans: Plan[] = (data ?? []).map((p) => {
     const [price, cents = '00'] = Number(p.monthly_price).toFixed(2).split('.')
