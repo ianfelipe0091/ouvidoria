@@ -3,8 +3,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 
 // Foto: Pexels (licença livre para uso comercial, sem atribuição obrigatória),
-// pexels.com/photo/7709235.
-import atendente from '@/../public/landing/contato-atendente.jpg'
+// pexels.com/photo/7681562 — recortada, só o casal do meio, com fundo transparente.
+import equipe from '@/../public/landing/contato-equipe.webp'
 
 import { Icon } from '@/components/landing/icons'
 import { SiteFooter, SiteHeader } from '@/components/landing/site-chrome'
@@ -31,8 +31,8 @@ export default function ContatoPage() {
       <SiteHeader />
 
       <section className="border-b border-border bg-hero">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 pb-12 pt-14 lg:grid-cols-[1.25fr_.75fr] lg:px-8 lg:py-16">
-          <div>
+        <div className="mx-auto grid max-w-6xl items-end gap-8 px-5 pt-14 lg:grid-cols-[1.2fr_.8fr] lg:px-8 lg:pt-10">
+          <div className="self-center lg:pb-10">
             <span className="inline-flex rounded-full border border-primary/15 bg-primary-soft px-3 py-1 text-xs font-bold text-primary">
               Fale conosco
             </span>
@@ -45,15 +45,18 @@ export default function ContatoPage() {
             </p>
           </div>
 
-          <div className="relative mx-auto w-full max-w-sm lg:max-w-none">
+          {/* Recorte com fundo transparente: as pessoas "apoiam" na borda de
+              baixo da faixa, sobre um círculo suave na cor da marca. */}
+          <div className="relative mx-auto w-full max-w-[340px] sm:max-w-[400px] lg:max-w-[440px]">
+            <div aria-hidden className="absolute inset-x-[6%] bottom-0 top-[14%] rounded-t-full bg-primary/10" />
             <Image
-              src={atendente}
-              alt="Atendente da Nossa Ouvidoria sorrindo, com fone de atendimento"
+              src={equipe}
+              alt="Equipe de atendimento da Nossa Ouvidoria, um homem e uma mulher com fones, sorrindo"
               priority
-              sizes="(min-width: 1024px) 380px, (min-width: 640px) 384px, 100vw"
-              className="h-80 w-full rounded-2xl object-cover object-[50%_55%] shadow-xl shadow-primary/10 sm:h-96 lg:h-[420px]"
+              sizes="(min-width: 1024px) 440px, (min-width: 640px) 400px, 340px"
+              className="relative block h-auto w-full"
             />
-            <div className="absolute -bottom-4 left-4 flex items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 shadow-lg">
+            <div className="absolute bottom-6 -left-2 flex items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 shadow-lg sm:-left-8">
               <span className="relative flex size-2.5">
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60 motion-reduce:hidden" />
                 <span className="relative inline-flex size-2.5 rounded-full bg-success" />
