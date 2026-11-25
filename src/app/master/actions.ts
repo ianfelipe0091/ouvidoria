@@ -538,3 +538,13 @@ export async function adminResetUserPassword(companyId: string, userId: string):
   refresh(companyId)
   return { ok: true, password }
 }
+
+// -------------------------------------------------------- fale conosco ----
+
+/** Marca uma mensagem do "Fale conosco" como nova, respondida ou arquivada. */
+export async function setContactStatus(id: string, status: 'nova' | 'respondida' | 'arquivada') {
+  const { supabase } = await requirePlatformAdmin()
+  const { error } = await supabase.rpc('admin_set_contact_status', { p_id: id, p_status: status })
+  if (error) throw new Error('Não foi possível atualizar a mensagem.')
+  revalidatePath('/master/contatos')
+}

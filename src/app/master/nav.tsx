@@ -8,6 +8,7 @@ import { cn } from '@/components/ui'
 const TABS = [
   { href: '/master', label: 'Visão geral', match: (p: string) => p === '/master' },
   { href: '/master/empresas', label: 'Empresas', match: (p: string) => p.startsWith('/master/empresas') },
+  { href: '/master/contatos', label: 'Fale conosco', match: (p: string) => p.startsWith('/master/contatos') },
 ]
 
 /** Abas do painel Master. A aba de empresas continua acesa dentro do detalhe. */

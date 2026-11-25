@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -380,6 +380,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      contact_messages: {
+        Row: {
+          company: string | null
+          created_at: string
+          email: string
+          handled_at: string | null
+          handled_by: string | null
+          id: string
+          message: string
+          name: string
+          phone: string | null
+          status: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          email: string
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          message: string
+          name: string
+          phone?: string | null
+          status?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          email?: string
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          message?: string
+          name?: string
+          phone?: string | null
+          status?: string
+        }
+        Relationships: []
       }
       departments: {
         Row: {
@@ -1258,6 +1297,10 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_set_contact_status: {
+        Args: { p_id: string; p_status: string }
+        Returns: undefined
+      }
       admin_update_billing: {
         Args: {
           p_company_id: string
@@ -1435,6 +1478,16 @@ export type Database = {
           p_subscription_status?: Database["public"]["Enums"]["subscription_status"]
         }
         Returns: undefined
+      }
+      submit_contact_message: {
+        Args: {
+          p_company?: string
+          p_email: string
+          p_message?: string
+          p_name: string
+          p_phone?: string
+        }
+        Returns: string
       }
       suggest_company_slug: { Args: { p_name: string }; Returns: string }
       track_manifestacao: {

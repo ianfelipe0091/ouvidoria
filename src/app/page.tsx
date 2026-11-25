@@ -10,7 +10,6 @@ import Link from 'next/link'
 // referência serve — reprocessar só mudaria pixels nas bordas finas. As três
 // fontes pesadas (duas fotos de 1920 px e o PNG de 2,5 MB do CTA) passam pelo
 // otimizador, que é onde ele economiza de verdade.
-import logo from '@/../public/landing/logo.png'
 import logoMark from '@/../public/landing/logo-o.png'
 import heroWoman from '@/../public/landing/hero-woman.webp'
 import heroChart from '@/../public/landing/hero-chart.png'
@@ -33,6 +32,7 @@ import reason07 from '@/../public/landing/reason-07.jpg'
 import { Growth, type Audience } from '@/components/landing/growth'
 import { Icon, type IconName } from '@/components/landing/icons'
 import { Reasons, type Reason } from '@/components/landing/reasons'
+import { SiteFooter, SiteHeader } from '@/components/landing/site-chrome'
 import { BRAND, planLimitLines, salesWhatsappUrl } from '@/lib/brand'
 import { createPublicClient } from '@/lib/supabase/public'
 
@@ -236,31 +236,7 @@ export default async function LandingPage() {
 
   return (
     <main id="top" className="lp min-h-screen overflow-hidden bg-background text-foreground">
-      <header className="sticky top-0 z-50 border-b border-border/80 bg-background/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 lg:px-8">
-          <Brand />
-          <nav className="flex items-center gap-3 text-sm" aria-label="Navegação principal">
-            <a
-              href="#planos"
-              className="hidden px-3 py-2 text-muted-foreground transition-colors hover:text-foreground sm:block"
-            >
-              Planos
-            </a>
-            <Link
-              href="/entrar"
-              className="hidden px-3 py-2 text-muted-foreground transition-colors hover:text-foreground sm:block"
-            >
-              Entrar
-            </Link>
-            <Link
-              href="/criar-conta"
-              className="rounded-md bg-primary px-4 py-2 font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
-            >
-              Criar conta
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader home />
 
       <section className="border-b border-border bg-hero">
         <div className="mx-auto grid min-h-[610px] max-w-6xl items-center gap-8 px-5 pb-8 pt-14 lg:grid-cols-[1.02fr_.98fr] lg:px-8 lg:pt-8">
@@ -513,24 +489,8 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      <footer className="border-t border-border py-7">
-        <div className="mx-auto flex max-w-6xl flex-col justify-between gap-3 px-5 text-xs text-muted-foreground sm:flex-row lg:px-8">
-          <Brand />
-          <p>
-            {'É cliente e procura o canal de uma empresa? O endereço tem o formato '}
-            <code className="text-foreground">/empresa</code>.
-          </p>
-        </div>
-      </footer>
+      <SiteFooter home />
     </main>
-  )
-}
-
-function Brand() {
-  return (
-    <a href="#top" className="flex items-center" aria-label="Nossa Ouvidoria, início">
-      <Image src={logo} alt="Nossa Ouvidoria" priority unoptimized className="h-9 w-auto" />
-    </a>
   )
 }
 
