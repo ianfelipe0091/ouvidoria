@@ -2,9 +2,8 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 
-// Foto: Pexels (licença livre para uso comercial, sem atribuição obrigatória),
-// pexels.com/photo/7681562 — recortada, só o casal do meio, com fundo transparente.
-import equipe from '@/../public/landing/contato-equipe.webp'
+// Foto enviada pelo cliente, recortada com fundo transparente.
+import atendente from '@/../public/landing/contato-atendente.webp'
 
 import { Icon } from '@/components/landing/icons'
 import { SiteFooter, SiteHeader } from '@/components/landing/site-chrome'
@@ -45,15 +44,15 @@ export default function ContatoPage() {
             </p>
           </div>
 
-          {/* Recorte com fundo transparente: as pessoas "apoiam" na borda de
+          {/* Recorte com fundo transparente: a pessoa "apoia" na borda de
               baixo da faixa, sobre um círculo suave na cor da marca. */}
-          <div className="relative mx-auto w-full max-w-[340px] sm:max-w-[400px] lg:max-w-[440px]">
-            <div aria-hidden className="absolute inset-x-[6%] bottom-0 top-[14%] rounded-t-full bg-primary/10" />
+          <div className="relative mx-auto w-full max-w-[250px] sm:max-w-[290px] lg:max-w-[330px]">
+            <div aria-hidden className="absolute -inset-x-[12%] bottom-0 top-[18%] rounded-t-full bg-primary/10" />
             <Image
-              src={equipe}
-              alt="Equipe de atendimento da Nossa Ouvidoria, um homem e uma mulher com fones, sorrindo"
+              src={atendente}
+              alt="Atendente da Nossa Ouvidoria sorrindo, de blazer azul"
               priority
-              sizes="(min-width: 1024px) 440px, (min-width: 640px) 400px, 340px"
+              sizes="(min-width: 1024px) 330px, (min-width: 640px) 290px, 250px"
               className="relative block h-auto w-full"
             />
             <div className="absolute bottom-6 -left-2 flex items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 shadow-lg sm:-left-8">
@@ -61,7 +60,7 @@ export default function ContatoPage() {
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60 motion-reduce:hidden" />
                 <span className="relative inline-flex size-2.5 rounded-full bg-success" />
               </span>
-              <p className="text-sm font-semibold">Equipe pronta para te atender</p>
+              <p className="text-sm font-semibold whitespace-nowrap">Equipe pronta para te atender</p>
             </div>
           </div>
         </div>
