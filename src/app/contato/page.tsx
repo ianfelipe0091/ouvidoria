@@ -7,14 +7,14 @@ import atendente from '@/../public/landing/contato-atendente.webp'
 
 import { Icon } from '@/components/landing/icons'
 import { SiteFooter, SiteHeader } from '@/components/landing/site-chrome'
-import { BRAND, contactWhatsappLabel, contactWhatsappUrl } from '@/lib/brand'
+import { BRAND, contactWhatsappUrl, salesWhatsappLabel } from '@/lib/brand'
 import { ContactForm } from './form'
 
 export const metadata: Metadata = {
   title: `Fale conosco — ${BRAND.name}`,
   description:
-    'Fale com a equipe da Nossa Ouvidoria: tire dúvidas sobre planos ou peça uma demonstração' +
-    (BRAND.contactWhatsapp ? ', também pelo WhatsApp.' : '.'),
+    'Fale com a equipe da Nossa Ouvidoria: tire dúvidas sobre planos, peça uma demonstração ' +
+    'ou converse pelo WhatsApp.',
 }
 
 /*
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
  */
 export default function ContatoPage() {
   const whatsappUrl = contactWhatsappUrl()
-  const whatsappLabel = contactWhatsappLabel()
+  const whatsappLabel = salesWhatsappLabel()
 
   return (
     <main id="top" className="lp min-h-screen overflow-hidden bg-background text-foreground">
@@ -40,7 +40,7 @@ export default function ContatoPage() {
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground">
               Dúvidas sobre planos, uma demonstração para a sua diretoria ou um projeto para uma rede
-              de franquias: {whatsappUrl ? 'mande sua mensagem ou chame direto no WhatsApp.' : 'mande sua mensagem e a nossa equipe responde.'}
+              de franquias: mande sua mensagem ou chame direto no WhatsApp.
             </p>
           </div>
 

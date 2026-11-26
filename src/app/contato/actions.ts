@@ -45,7 +45,7 @@ export async function sendContact(_prev: ContactState, form: FormData): Promise<
 
   if (error) {
     console.error('[contato] falha ao gravar mensagem', error.message)
-    return { error: 'Não foi possível enviar agora. Tente de novo em alguns minutos.' }
+    return { error: 'Não foi possível enviar agora. Tente de novo ou chame no WhatsApp.' }
   }
 
   return { ok: true, firstName: name.split(/\s+/)[0] }

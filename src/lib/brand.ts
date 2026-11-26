@@ -24,12 +24,6 @@ export const BRAND = {
    * lugar nenhum — é aqui que se liga o atendimento.
    */
   salesWhatsapp: '5561991437672' as string | null,
-  /**
-   * WhatsApp exibido na página Fale conosco (/contato), no mesmo formato.
-   * Enquanto for null, a página não mostra número nem botão de WhatsApp —
-   * só o formulário.
-   */
-  contactWhatsapp: null as string | null,
 } as const
 
 /**
@@ -44,14 +38,14 @@ export function salesWhatsappUrl(planName: string) {
 
 /** Link de WhatsApp da página Fale conosco. Null sem número configurado. */
 export function contactWhatsappUrl() {
-  if (!BRAND.contactWhatsapp) return null
+  if (!BRAND.salesWhatsapp) return null
   const text = 'Olá! Vim pelo site da Nossa Ouvidoria e gostaria de mais informações.'
-  return `https://wa.me/${BRAND.contactWhatsapp}?text=${encodeURIComponent(text)}`
+  return `https://wa.me/${BRAND.salesWhatsapp}?text=${encodeURIComponent(text)}`
 }
 
 /** "5561991437672" → "(61) 99143-7672", para exibir o número na página. */
-export function contactWhatsappLabel() {
-  const d = BRAND.contactWhatsapp?.replace(/^55/, '') ?? ''
+export function salesWhatsappLabel() {
+  const d = BRAND.salesWhatsapp?.replace(/^55/, '') ?? ''
   if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
   if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
   return null
