@@ -7,7 +7,7 @@ import atendente from '@/../public/landing/contato-atendente.webp'
 
 import { Icon } from '@/components/landing/icons'
 import { SiteFooter, SiteHeader } from '@/components/landing/site-chrome'
-import { BRAND, contactWhatsappUrl, salesWhatsappLabel } from '@/lib/brand'
+import { BRAND, contactWhatsappUrl } from '@/lib/brand'
 import { ContactForm } from './form'
 
 export const metadata: Metadata = {
@@ -23,7 +23,6 @@ export const metadata: Metadata = {
  */
 export default function ContatoPage() {
   const whatsappUrl = contactWhatsappUrl()
-  const whatsappLabel = salesWhatsappLabel()
 
   return (
     <main id="top" className="lp min-h-screen overflow-hidden bg-background text-foreground">
@@ -86,9 +85,6 @@ export default function ContatoPage() {
                 <p className="mt-2 text-sm leading-6 text-background/70">
                   Fale direto com a nossa equipe comercial.
                 </p>
-                {whatsappLabel ? (
-                  <p className="mt-4 text-2xl font-bold tracking-tight">{whatsappLabel}</p>
-                ) : null}
                 <a
                   href={whatsappUrl}
                   target="_blank"

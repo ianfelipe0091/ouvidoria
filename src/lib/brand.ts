@@ -43,14 +43,6 @@ export function contactWhatsappUrl() {
   return `https://wa.me/${BRAND.salesWhatsapp}?text=${encodeURIComponent(text)}`
 }
 
-/** "5561991437672" → "(61) 99143-7672", para exibir o número na página. */
-export function salesWhatsappLabel() {
-  const d = BRAND.salesWhatsapp?.replace(/^55/, '') ?? ''
-  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
-  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
-  return null
-}
-
 /**
  * Linhas de limite que abrem a lista de recursos de cada plano. Uma filial
  * conta como "filial ou empresa": o cliente pode usar a mesma estrutura para
