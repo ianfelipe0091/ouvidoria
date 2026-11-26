@@ -23,7 +23,7 @@ export function ContactForm({ whatsappUrl }: { whatsappUrl: string | null }) {
         <h2 className="text-2xl font-bold">Mensagem enviada{state.firstName ? `, ${state.firstName}` : ''}!</h2>
         <p className="max-w-md leading-7 text-muted-foreground">
           Recebemos seu contato e vamos responder pelo e-mail ou telefone que você informou, em
-          horário comercial. Se for urgente, chame no WhatsApp.
+          horário comercial.{whatsappUrl ? ' Se for urgente, chame no WhatsApp.' : ''}
         </p>
         {whatsappUrl ? (
           <a
